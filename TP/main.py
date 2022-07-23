@@ -73,28 +73,51 @@ class Tile:
 
             for tile in currentTiles:
                 for checkTile in Tile.getTileNeighbors(self.app, tile):
-                    if checkTile.pointToTile == target:
+                    if checkTile == target:
+                        #target found, recursively add pointers to path and return
                         print("found target!")
-                        return True
+
+                        target.pointToTile = tile
+                        path = []
+                        pointer = target
+
+                        while pointer != self:
+                            path.append(pointer)
+                            pointer = pointer.pointToTile
+
+                            if pointer == None: #should never happen
+                                print("pathfinding broken")
+                                break
+
+                        path.reverse() #reversed list goes from start to finish
+
+                        #print(path)
+                        return path
                     if not checkTile.isWall and checkTile.pointToTile == None\
                     and checkTile != self:
                         #hasn't been assigned to a tile yet
                         checkTile.pointToTile = tile
                         newTiles.append(checkTile)
-                        noNewTiles = False
+                        noNewTiles = []
 
-            print(newTiles)
+            #print(newTiles)
 
             if noNewTiles:
                 print("pathfinding failed")
-                return False
+                return []
 
             #replaces current tiles so next iteration can search
             currentTiles = newTiles
 
+def appStarted(app):
+    app.tileCols, app.tileRows = 10, 10
+
+    init(app)
 
 def init(app):
-    app.tileCols, app.tileRows = 10, 10
+    app.pathway = [] #temporary enemy pathway
+
+    app.deleteWalls = False #keypress trigger
 
     app.tiles = []
     for i in range(app.tileCols):
@@ -106,21 +129,42 @@ def init(app):
 
     app.entrance = app.tiles[0][app.tileRows // 2]
     app.exit = app.tiles[app.tileCols - 1][app.tileRows // 2]
+    calculatePath(app)
+
+def calculatePath(app):
+    app.pathway = app.entrance.pathFindToTile(app.exit)
 
 def timerFired(app):
     pass
 
-def appStarted(app):
-    init(app)
-
-def mousePressed(app, event):
+def mouseEvent(app, event): #helper called by both drag and press
     col, row = getTileFromMousePos(app, event.x, event.y)
     if col != -1 and (col, row) != app.entrance.coordinates and\
     (col, row) != app.exit.coordinates:
-        app.tiles[col][row].toggleWall()
+        if (not app.tiles[col][row].isWall and not app.deleteWalls) or\
+        (app.tiles[col][row].isWall and app.deleteWalls):
+            app.tiles[col][row].toggleWall()
+            calculatePath(app)
+
+def mouseDragged(app, event):
+    mouseEvent(app, event)
+
+def mousePressed(app, event):
+    mouseEvent(app, event)
+
 
 def keyPressed(app, event):
-    app.entrance.pathFindToTile(app.exit)
+    if event.key == "x":
+        app.deleteWalls = not app.deleteWalls
+
+    if event.key == "Left" and app.tileCols > 5:
+        app.tileCols -= 1
+        app.tileRows -= 1
+        init(app)
+    if event.key == "Right" and app.tileCols < 100:
+        app.tileCols += 1
+        app.tileRows += 1
+        init(app)
 
 #both use height for square grid
 def getTileWidth(app):
@@ -155,11 +199,14 @@ def redrawAll(app, canvas):
                 color = "red"
             elif tile.isWall:
                 color = "white"
+            elif tile in app.pathway:
+                color = "blue"
+            
 
             canvas.create_rectangle(x1, y1, x2, y2, fill=color, width=0)
 
 def main():
-    runApp(width=550, height=550)
+    runApp(width=700, height=700)
 
 if __name__ == '__main__':
     main()
