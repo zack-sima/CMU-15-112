@@ -99,14 +99,63 @@ class Tile:
                         noNewTiles = []
 
             if noNewTiles:
-                print("pathfinding failed")
                 return []
 
             #replaces current tiles so next iteration can search
             currentTiles = newTiles
 
+class Enemy:
+    def __init__(self, app):
+        #interpolates between current tile and next tile
+        self.currentInterpolation = 0
+        self.currentPosition = (-1, app.entrance.y) #-1 so it moves into the entrance
+        self.speed = 1 #1 game tile per second
+
+        self.path = copy.copy(app.pathway)
+        self.path.insert(0, app.entrance)
+
+        self.square = geometry.Rectangle(0, 0, getTileWidth(app) * 0.8, getTileHeight(app) * 0.8, color="red", layer=2)
+        geometry.instantiate(app, self.square)
+
+        app.enemies.append(self)
+
+    def findPath(self, app):
+        pass #needs to find path for current tile if a new building is placed
+
+    def destroy(self, app):
+        app.enemies.remove(self)
+        self.square.destroy(app)
+        del self
+
+    def update(self, app):
+        self.currentInterpolation += app.deltaTime * self.speed
+        self.square.x = (self.currentPosition[0] + 0.5) * getTileWidth(app)
+        self.square.y = (self.currentPosition[1] + 0.5) * getTileHeight(app)
+
+        if len(self.path) > 0:
+            if self.currentInterpolation < 1:
+                self.square.x += ((self.path[0].x + 0.5) * getTileWidth(app) - self.square.x) * self.currentInterpolation
+                self.square.y += ((self.path[0].y + 0.5) * getTileHeight(app) - self.square.y) * self.currentInterpolation
+            else:
+                self.currentInterpolation = 0
+                self.square.x = (self.path[0].x + 0.5) * getTileWidth(app)
+                self.square.y = (self.path[0].y + 0.5) * getTileHeight(app)
+                self.currentPosition = (self.path[0].x, self.path[0].y)
+                self.path.pop(0)
+                if len(self.path) == 0:
+                    print("destination reached")
+                    self.destroy(app)
+        else:
+            print("path empty")
+            self.destroy(app)
+
+
 def appStarted(app):
-    app.tileCols, app.tileRows = 17, 10
+    app.deltaTime = .02 #actual time between current and next
+    app.lastCall = time.time()
+    app.timerDelay = 20
+
+    app.tileCols, app.tileRows = 18, 10
     app.bottomMargin = 150
 
     geometry.init(app)
@@ -123,6 +172,9 @@ def init(app):
     app.buyingTower = False
     app.buyinTowerId = 0
     app.currentMouseCoords = (0, 0)
+    app.enemySpawnDelay = 3
+
+    app.enemies = []
 
     app.tiles = []
     for i in range(app.tileCols):
@@ -131,6 +183,9 @@ def init(app):
             #new tile
             t = Tile(app, i, j)
             app.tiles[i].append(t)
+            if i == app.tileCols - 1:
+                t.isWall = True #last col is not seen but all walls
+
 
     app.entrance = app.tiles[0][app.tileRows // 2]
     app.exit = app.tiles[app.tileCols - 1][app.tileRows // 2]
@@ -139,12 +194,24 @@ def init(app):
     ui.instantiate(app, ui.Button(75, app.height - 75, 70, 70, color="white", dimColor="gray",
      text="Dart\nTower", textFont="Helvetica 15 bold", clickCallback=buyTowerDown, bid=0))
 
+    calculatePath(app)
+
 
 def calculatePath(app):
     app.pathway = app.entrance.pathFindToTile(app.exit)
 
 def timerFired(app):
-    pass
+    app.deltaTime = time.time() - app.lastCall
+
+    app.enemySpawnDelay -= app.deltaTime
+    if app.enemySpawnDelay < 0:
+        app.enemySpawnDelay = 5
+        Enemy(app)
+
+    for i in app.enemies:
+        i.update(app)
+
+    app.lastCall = time.time()
 
 def mouseEvent(app, event): #helper called by both drag and press
     col, row = getTileFromMousePos(app, event.x, event.y)
@@ -164,14 +231,40 @@ def mousePressed(app, event):
     ui.mouseDown(app, event)
 
 def tryPlaceTower(app, x, y, tower):
-    col, row = getTileFromMousePos(app, x, y)
-    if col != -1 and not app.tiles[col][row].isWall:
-        app.tiles[col][row].toggleWall()
+    if canPlaceTower(app, x, y):
+        col, row = getTileFromMousePos(app, x, y)
+        app.tiles[col][row].isWall = True
+
+        #make all enemies recalculate path
+        for i in app.enemies:
+            i.path = [i.path[0]]
+            i.path.extend(i.path[0].pathFindToTile(app.exit))
+
         calculatePath(app)
 
 def canPlaceTower(app, x, y):
     col, row = getTileFromMousePos(app, x, y)
     if col != -1 and not app.tiles[col][row].isWall:
+        allCoords = {(app.entrance.x, app.entrance.y)}
+        for i in app.enemies:
+            if i.currentPosition[0] == col and i.currentPosition[1] == row or\
+            i.path[0].x == col and i.path[0].y == row:
+                return False
+            if i.currentPosition[0] != -1 and i.path[0] != app.exit:
+                #all all possible tiles to set and check all of them
+                allCoords.add((i.currentPosition[0], i.currentPosition[1]))
+                allCoords.add((i.path[0].x, i.path[0].y))
+
+        #assume this is a wall and see if pathfinding is successful
+        app.tiles[col][row].isWall = True
+
+        for i in allCoords:
+            #if any tile cannot pathfind, don't allow placement
+            if app.tiles[i[0]][i[1]].pathFindToTile(app.exit) == []:
+                app.tiles[col][row].isWall = False
+                return False
+
+        app.tiles[col][row].isWall = False
         return True
     return False
 
@@ -192,7 +285,7 @@ def keyPressed(app, event):
 
 #both use height for square grid
 def getTileWidth(app):
-    return app.width / app.tileCols
+    return app.width / (app.tileCols - 1)
 
 def getTileHeight(app):
     return (app.height - app.bottomMargin) / app.tileRows
@@ -221,14 +314,14 @@ def redrawAll(app, canvas):
             y2 = tileHeight * (tile.y + 1) - tileMargin
 
             color = "lightgreen"
-            if tile == app.entrance:
-                color = "green"
-            elif tile == app.exit:
-                color = "red"
-            elif tile.isWall:
+            # if tile == app.entrance:
+            #     color = "green"
+            # elif tile == app.exit:
+            #     color = "red"
+            if tile.isWall:
                 color = "white"
-            elif tile in app.pathway:
-                color = "blue"
+            # elif tile in app.pathway or tile == app.entrance:
+            #     color = "blue"
             
             canvas.create_rectangle(x1, y1, x2, y2, fill=color, width=0)
 

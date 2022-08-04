@@ -112,7 +112,7 @@ class Rectangle:
 
             #the offset of the point compared to center
             offsetRad = math.pi / 2
-            if not almostEqual(y, 0): #atan x/y
+            if not math.isclose(y, 0): #atan x/y
                 offsetRad = math.atan(x / y)
 
             #differentiate between different quadrants for atan
