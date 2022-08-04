@@ -75,8 +75,6 @@ class Tile:
                 for checkTile in Tile.getTileNeighbors(self.app, tile):
                     if checkTile == target:
                         #target found, recursively add pointers to path and return
-                        print("found target!")
-
                         target.pointToTile = tile
                         path = []
                         pointer = target
@@ -99,8 +97,6 @@ class Tile:
                         checkTile.pointToTile = tile
                         newTiles.append(checkTile)
                         noNewTiles = []
-
-            #print(newTiles)
 
             if noNewTiles:
                 print("pathfinding failed")
