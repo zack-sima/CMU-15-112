@@ -28,6 +28,7 @@ class Tile:
         self.y = y
         self.coordinates = (x, y)
         self.isWall = False
+        self.tower = None
 
         #pathfinding: points to tile that goes here
         #note: since there isn't terrain, all costs are equal
@@ -117,10 +118,6 @@ def appStarted(app):
     init(app)
     initRes(app)
 
-def buyTowerDown(app, button):
-    app.buyingTower = True
-    app.buyingTowerId = button.bid
-
 #initialize resources
 def initRes(app):
     app.image1 = app.loadImage("circle.png")
@@ -131,10 +128,10 @@ def init(app):
     app.buyingTower = False
     app.buyinTowerId = 0
     app.currentMouseCoords = (0, 0)
-    # app.enemySpawnDelay = 3
-
     app.enemies = []
     app.towers = []
+    app.selectedTower = None
+    app.paused = False
 
     app.tiles = []
     for i in range(app.tileCols):
@@ -154,33 +151,80 @@ def init(app):
 
     #------------- add game UI --------------
 
-    #buy towers background
+    #tower info background
     ui.Rectangle(app, app.width - app.rightMargin / 2, app.height / 2,
         app.rightMargin, app.height, color="#8a4a22")
-    ui.Text(app, app.width - app.rightMargin / 2, 25, anchor="n", text="Buy Towers", font="Helvetica 25 bold", color="white")
+    
+    #buy tower UI
+    app.buyTowerText = ui.Text(app, app.width - app.rightMargin / 2, 100, anchor="n", text="Buy Towers", font="Helvetica 25 bold", color="white")
 
-    #buy tower buttons
-    ui.Button(app, app.width - app.rightMargin / 2, 150, 100, 100, color="white", dimColor="lightgreen",
-     text="Dart\nTower", textFont="Helvetica 15 bold", clickCallback=buyTowerDown, bid=0)
+    app.dartTowerButton = ui.Button(app, app.width - app.rightMargin / 2, 225, 100, 100, color="white", dimColor="lightgreen",
+     text="Dart\nTower", textFont="Helvetica 18 bold", clickCallback=buyTowerDown, bid=0)
+
+    app.gatlingTowerButton = ui.Button(app, app.width - app.rightMargin / 2, 350, 100, 100, color="white", dimColor="lightgreen",
+     text="Gatling\nTower", textFont="Helvetica 18 bold", clickCallback=buyTowerDown, bid=1)
+
+    app.buyTowerUI = [app.buyTowerText, app.dartTowerButton, app.gatlingTowerButton]
+
+    #upgrade/sell tower buttons
+    app.manageTowerText = ui.Text(app, app.width - app.rightMargin / 2, 100, anchor="n",
+        text="[selected tower name]", font="Helvetica 25 bold", color="white")
+
+    app.upgradeTowerButton = ui.Button(app, app.width - app.rightMargin / 2, 275, 120, 120, color="white", dimColor="lightgreen",
+     text="Upgrade\nTower", textFont="Helvetica 18 bold", releaseCallback=upgradeSelectedTower, bid=0)
+
+    app.sellTowerButton = ui.Button(app, app.width - app.rightMargin / 2, 450, 120, 120, color="white", dimColor="lightgreen",
+     text="Sell\nTower", textFont="Helvetica 18 bold", releaseCallback=sellSelectedTower, bid=0)
+
+    app.manageTowerUI = [app.manageTowerText, app.upgradeTowerButton, app.sellTowerButton]
+
+    #pause button
+    app.pauseButton = ui.Button(app, app.width - app.rightMargin / 2, 50, 50, 50, color="", dimColor="",
+        outlineColor="white", textFont="Helvetica 18 bold", outlineDimColor="lightgreen", outlineWidth=3, text=">", textColor="white", releaseCallback=togglePause, bid=0)
+
+    #--------------- enemy spawn pattern ------------
 
     #health, speed
     app.enemyTypes = {"red": (5, 1), "blue": (10, 1.5), "green": (15, 2),
     "yellow": (20, 2.5), "black": (30, 1.5), "white": (35, 1.8)}
 
     #color, number, interval, pause after
-    app.enemyWaves = [("red", 10, 1, 5), ("blue", 10, 1.5, 5), ("red", 20, 0.8, 5), ("green", 7, 2, 10),
-    ("yellow", 3, 3, 5), ("black", 100, 5, 10)]
+    app.enemyWaves = [("red", 10, 1.5, 5), ("blue", 10, 1.5, 5), ("red", 20, 1, 5), ("green", 7, 1, 10),
+    ("yellow", 10, 2, 5), ("white", 1000, 1, 10)]
 
     app.currentWave = 0
     app.enemySpawnDelay = 3
     app.currentEnemySpawn = 0 #current number of squares spawned
 
+def togglePause(app, button):
+    app.paused = not app.paused
+    if app.paused:
+        app.pauseButton.text = "ll"
+    else:
+        app.pauseButton.text = ">"
+
+def buyTowerDown(app, button):
+    app.buyingTower = True
+    app.buyingTowerId = button.bid
+
+def upgradeSelectedTower(app, button):
+    if app.selectedTower != None:
+        app.selectedTower.upgrade(app)
+    print("upgrade tower")
+
+def sellSelectedTower(app, button):
+    if app.selectedTower != None:
+        app.tiles[app.selectedTower.col][app.selectedTower.row].isWall = False
+        app.tiles[app.selectedTower.col][app.selectedTower.row].tower = None
+        app.selectedTower.destroy(app)
+
+        app.selectedTower = None
+    print("sell tower")
+
 def calculatePath(app):
     app.pathway = app.entrance.pathFindToTile(app.exit)
 
-def timerFired(app):
-    app.deltaTime = time.time() - app.lastCall
-
+def update(app):
     if app.enemySpawnDelay > 0:
         app.enemySpawnDelay -= app.deltaTime
     if app.enemySpawnDelay <= 0 and app.currentWave < len(app.enemyWaves):
@@ -195,16 +239,20 @@ def timerFired(app):
             app.currentWave += 1
             app.currentEnemySpawn = 0
 
-    # app.enemySpawnDelay -= app.deltaTime
-    # if app.enemySpawnDelay < 0:
-    #     app.enemySpawnDelay = 1
-    #     enemy.Enemy(app)
-
+def updateEvenPaused(app):
     for i in app.enemies:
         i.update(app)
 
     for i in app.towers:
         i.update(app)
+
+def timerFired(app):
+    app.deltaTime = time.time() - app.lastCall
+
+    if not app.paused:
+        update(app)
+
+    updateEvenPaused(app)
 
     app.lastCall = time.time()
 
@@ -223,14 +271,56 @@ def mouseDragged(app, event):
 def mousePressed(app, event):
     app.currentMouseCoords = (event.x, event.y)
 
+    
+    col, row = getTileFromMousePos(app, event.x, event.y)
+    if col != -1 and col != app.tileCols - 1:
+        #only deselects if a tile is clicked and not last tile (hidden finish tile)
+        app.selectedTower = None
+
+    if col != -1 and app.tiles[col][row].tower != None:
+        app.selectedTower = app.tiles[col][row].tower
+        updateTowerUI(app)
+
     ui.mouseDown(app, event)
+
+def updateTowerUI(app):
+    if app.selectedTower != None:
+        app.manageTowerText.text = app.selectedTower.name + "\n(level " + str(app.selectedTower.level) + ")"
+        if app.selectedTower.level == app.selectedTower.maxLevel:
+            app.upgradeTowerButton.text = "Max Level"
+        else:
+            app.upgradeTowerButton.text = "Upgrade\nTower"
+
+def mouseReleased(app, event):
+    ui.mouseUp(app, event)
+
+    #check tower purchase
+    if app.buyingTower:
+        tryPlaceTower(app, event.x, event.y, app.buyingTowerId)
+        app.buyingTower = False
+
+def keyPressed(app, event):
+    if event.key == "x":
+        app.deleteWalls = not app.deleteWalls
+
+    if event.key == "r":
+        appStarted(app)
 
 def tryPlaceTower(app, x, y, tower):
     if canPlaceTower(app, x, y):
         col, row = getTileFromMousePos(app, x, y)
         app.tiles[col][row].isWall = True
 
-        towers.DartTower(app, col, row)
+        t = None
+        if tower == 0:
+            t = towers.DartTower(app, col, row)
+        elif tower == 1:
+            t = towers.GatlingTower(app, col, row)
+        else:
+            print("error: no tower with button id; defaulting to dart tower")
+            t = towers.DartTower(app, col, row)
+        
+        app.tiles[col][row].tower = t
 
         #make all enemies recalculate path
         for i in app.enemies:
@@ -241,6 +331,11 @@ def tryPlaceTower(app, x, y, tower):
 
 def canPlaceTower(app, x, y):
     col, row = getTileFromMousePos(app, x, y)
+
+    #can't build on entrance, edge scenario
+    if app.tiles[col][row] == app.entrance:
+        return False
+
     if col != -1 and not app.tiles[col][row].isWall:
         allCoords = {(app.entrance.x, app.entrance.y)}
         for i in app.enemies:
@@ -265,27 +360,16 @@ def canPlaceTower(app, x, y):
         return True
     return False
 
-def mouseReleased(app, event):
-    ui.mouseUp(app, event)
-
-    #check tower purchase
-    if app.buyingTower:
-        tryPlaceTower(app, event.x, event.y, app.buyingTowerId)
-        app.buyingTower = False
-
-def keyPressed(app, event):
-    if event.key == "x":
-        app.deleteWalls = not app.deleteWalls
-
-    if event.key == "r":
-        appStarted(app)
 
 #both use height for square grid
 def getTileWidth(app):
-    return (app.width - app.rightMargin) / (app.tileCols - 1)
+    #return (app.width - app.rightMargin) / (app.tileCols - 1)
+    return (1024 - app.rightMargin) / (app.tileCols - 1)
 
 def getTileHeight(app):
-    return app.height / app.tileRows
+    # return app.height / app.tileRows
+    return 768 / app.tileRows
+
 
 def getTileFromMousePos(app, x, y):
     col = int(x / getTileWidth(app))
@@ -299,10 +383,12 @@ def getTileFromMousePos(app, x, y):
 def redrawAll(app, canvas):
     #background
     canvas.create_rectangle(0, 0, app.width, app.height, fill="black", width=0)
-    
 
     tileWidth, tileHeight = getTileWidth(app), getTileHeight(app)
     tileMargin = 0 #space between tiles
+
+    if app.buyingTower:
+        tileMargin = 1 #show grid
 
     for col in app.tiles:
         for tile in col:
@@ -324,14 +410,28 @@ def redrawAll(app, canvas):
     #geometry
     geometry.renderAll(app, canvas)
 
+    #selected tower range display and display different UI
+    if app.selectedTower != None:
+        for i in app.manageTowerUI:
+            i.isActive = True
+        for i in app.buyTowerUI:
+            i.isActive = False
+
+        #scale = app.selectedTower.detectionRange * 2 / app.image1.size[0]
+        # scaledCircle = app.scaleImage(app.image1, scale)
+        canvas.create_oval(app.selectedTower.x - app.selectedTower.detectionRange,
+            app.selectedTower.y - app.selectedTower.detectionRange,
+            app.selectedTower.x + app.selectedTower.detectionRange,
+            app.selectedTower.y + app.selectedTower.detectionRange, fill="", width=2, outline="black")
+        #canvas.create_image(app.selectedTower.x, app.selectedTower.y, image=ImageTk.PhotoImage(scaledCircle))
+    else:
+        for i in app.manageTowerUI:
+            i.isActive = False
+        for i in app.buyTowerUI:
+            i.isActive = True
+
     #ui: always on top of game elements
     ui.renderAll(app, canvas)
-
-    circleSize = 500
-    scale = circleSize / app.image1.size[0]
-    scaledCircle = app.scaleImage(app.image1, scale)
-
-    # canvas.create_image(app.width / 2, app.height / 2, image=ImageTk.PhotoImage(scaledCircle))
 
     #building hover
     if app.buyingTower:

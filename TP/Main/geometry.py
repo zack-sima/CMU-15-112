@@ -9,7 +9,8 @@ class Rectangle:
     #   when adding this object to the list of rendered objects,
     #   add it to the right layer order (do a binary search of list)
     def __init__(self, app, x, y, width, height,
-        rotation=0, layer=0, parent=None, color="black", name="rectangle"):
+        rotation=0, layer=0, parent=None, color="black", name="rectangle",
+        outlineWidth=0, outlineColor=""):
 
         self.name = name
         self.x = x
@@ -18,6 +19,9 @@ class Rectangle:
         self.height = height
         self.parent = parent
         self.rotation = rotation
+        self.outlineWidth = outlineWidth
+        self.outlineColor = outlineColor
+
         self.spawnTime = time.time()
 
         if parent != None:
@@ -144,7 +148,7 @@ class Rectangle:
 
             rotatedPoints.extend([newX, newY])
 
-        canvas.create_polygon(rotatedPoints, fill=self.color)
+        canvas.create_polygon(rotatedPoints, fill=self.color, width=self.outlineWidth, outline=self.outlineColor)
     
 def init(app):
     app.renderedObjects = {} #key is layer, value is list

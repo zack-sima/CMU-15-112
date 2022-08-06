@@ -14,7 +14,7 @@ class Enemy:
         self.maxHealth = health
         self.health = health
 
-        self.square = geometry.Rectangle(app, 0, 0, main.getTileWidth(app) * 0.8, main.getTileHeight(app) * 0.8, color=color, layer=2)
+        self.square = geometry.Rectangle(app, -100, 0, main.getTileWidth(app) * 0.8, main.getTileHeight(app) * 0.8, color=color, layer=2)
         
         self.healthBarRight = geometry.Rectangle(app, x=0, y=self.square.height / 2 + 10, width=self.square.width, height=7, parent=self.square, color="black", layer=5)
         self.healthBarLeft = geometry.Rectangle(app, x=0, y=self.square.height / 2 + 10, width=self.square.width, height=7, parent=self.square, color="#00FF00", layer=5)
@@ -44,7 +44,7 @@ class Enemy:
         self.destroyed = True
 
     def update(self, app):
-        if self.destroyed:
+        if self.destroyed or app.paused:
             return
 
         self.healthBarLeft.width = self.square.width * self.health / self.maxHealth
