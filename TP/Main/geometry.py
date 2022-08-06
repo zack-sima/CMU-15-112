@@ -1,11 +1,14 @@
 import random, string, math, time
 
+def distance(x1, y1, x2, y2):
+    return math.sqrt((x2 - x1) ** 2 + (y2 - y1) ** 2)
+
 class Rectangle:
     #center: (x, y); if parent exists, all x and y are local
     #the higher the layer, the later it is rendered (thus on top)
     #   when adding this object to the list of rendered objects,
     #   add it to the right layer order (do a binary search of list)
-    def __init__(self, x, y, width, height,
+    def __init__(self, app, x, y, width, height,
         rotation=0, layer=0, parent=None, color="black", name="rectangle"):
 
         self.name = name
@@ -28,6 +31,11 @@ class Rectangle:
         self.layer = layer
         self.color = color
 
+        if app.renderedObjects.get(self.layer) == None:
+            app.renderedObjects[self.layer] = []
+
+        app.renderedObjects[self.layer].append(self)
+
     def translate(self, x, y, local=True):
         if not local:
             #just add straight to the local position without considering rotation
@@ -39,7 +47,8 @@ class Rectangle:
 
             self.y += x * math.sin(-self.globalRotation * math.pi / 180) + \
             y * math.sin((-self.globalRotation + 90) * math.pi / 180)
-            self.updateGlobalPosition()
+        
+        self.updateGlobalPosition()
 
     #makes the right side of the rectangle look towards given coords
     def lookAt(self, x, y):
@@ -60,21 +69,32 @@ class Rectangle:
 
         self.updateGlobalRotation()
 
+    #NOTE: for local position, y is actually up because of how I did trig
     def updateGlobalPosition(self):
         #if object has parents, x and y need to be rotated according to parent
         if self.parent != None:
+            # print(f"self: {self.x}, {self.y}")
             dx, dy = self.x, self.y
             dr = (dx ** 2 + dy ** 2) ** 0.5
 
-            self.globalX = self.parent.globalX + dr * math.cos(-self.parent.globalRotation * math.pi / 180)
-            self.globalY = self.parent.globalY + dr * math.sin(-self.parent.globalRotation * math.pi / 180)
+            #the offset of the point compared to center
+            offsetRad = math.pi / 2
+            if not math.isclose(dx, 0): #atan y/x
+                offsetRad = math.atan(dy / dx)
+
+            #differentiate between different quadrants for atan
+            if dx < 0:
+                offsetRad += math.pi
+
+            self.globalX = self.parent.globalX + dr * math.cos(-self.parent.globalRotation * math.pi / 180 - offsetRad)
+            self.globalY = self.parent.globalY + dr * math.sin(-self.parent.globalRotation * math.pi / 180 - offsetRad)
         else:
             self.globalX = self.x
             self.globalY = self.y
 
     def destroy(self, app):
-        app.renderedObjects[self.layer].remove(self)
-        del self
+        if self in app.renderedObjects[self.layer]:
+            app.renderedObjects[self.layer].remove(self)
 
     def updateGlobalRotation(self):
         if self.parent != None:
@@ -125,12 +145,6 @@ class Rectangle:
             rotatedPoints.extend([newX, newY])
 
         canvas.create_polygon(rotatedPoints, fill=self.color)
-
-def instantiate(app, obj):
-    if app.renderedObjects.get(obj.layer) == None:
-        app.renderedObjects[obj.layer] = []
-
-    app.renderedObjects[obj.layer].append(obj)
     
 def init(app):
     app.renderedObjects = {} #key is layer, value is list

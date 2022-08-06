@@ -1,5 +1,5 @@
 from cmu_112_graphics import *
-import random, string, math, time, geometry, ui
+import random, string, math, time, geometry, ui, enemy, towers
 
 #################################################
 # Helper functions
@@ -104,67 +104,26 @@ class Tile:
             #replaces current tiles so next iteration can search
             currentTiles = newTiles
 
-class Enemy:
-    def __init__(self, app):
-        #interpolates between current tile and next tile
-        self.currentInterpolation = 0
-        self.currentPosition = (-1, app.entrance.y) #-1 so it moves into the entrance
-        self.speed = 1 #1 game tile per second
-
-        self.path = copy.copy(app.pathway)
-        self.path.insert(0, app.entrance)
-
-        self.square = geometry.Rectangle(0, 0, getTileWidth(app) * 0.8, getTileHeight(app) * 0.8, color="red", layer=2)
-        geometry.instantiate(app, self.square)
-
-        app.enemies.append(self)
-
-    def findPath(self, app):
-        pass #needs to find path for current tile if a new building is placed
-
-    def destroy(self, app):
-        app.enemies.remove(self)
-        self.square.destroy(app)
-        del self
-
-    def update(self, app):
-        self.currentInterpolation += app.deltaTime * self.speed
-        self.square.x = (self.currentPosition[0] + 0.5) * getTileWidth(app)
-        self.square.y = (self.currentPosition[1] + 0.5) * getTileHeight(app)
-
-        if len(self.path) > 0:
-            if self.currentInterpolation < 1:
-                self.square.x += ((self.path[0].x + 0.5) * getTileWidth(app) - self.square.x) * self.currentInterpolation
-                self.square.y += ((self.path[0].y + 0.5) * getTileHeight(app) - self.square.y) * self.currentInterpolation
-            else:
-                self.currentInterpolation = 0
-                self.square.x = (self.path[0].x + 0.5) * getTileWidth(app)
-                self.square.y = (self.path[0].y + 0.5) * getTileHeight(app)
-                self.currentPosition = (self.path[0].x, self.path[0].y)
-                self.path.pop(0)
-                if len(self.path) == 0:
-                    print("destination reached")
-                    self.destroy(app)
-        else:
-            print("path empty")
-            self.destroy(app)
-
-
 def appStarted(app):
     app.deltaTime = .02 #actual time between current and next
     app.lastCall = time.time()
-    app.timerDelay = 20
+    app.timerDelay = 1
 
-    app.tileCols, app.tileRows = 18, 10
-    app.bottomMargin = 150
+    app.tileCols, app.tileRows = 15 + 1, 15 #note: last col is wall
+    app.rightMargin = 256
 
     geometry.init(app)
     ui.init(app)
     init(app)
+    initRes(app)
 
 def buyTowerDown(app, button):
     app.buyingTower = True
     app.buyingTowerId = button.bid
+
+#initialize resources
+def initRes(app):
+    app.image1 = app.loadImage("circle.png")
 
 def init(app):
     app.pathway = [] #temporary enemy pathway
@@ -172,9 +131,10 @@ def init(app):
     app.buyingTower = False
     app.buyinTowerId = 0
     app.currentMouseCoords = (0, 0)
-    app.enemySpawnDelay = 3
+    # app.enemySpawnDelay = 3
 
     app.enemies = []
+    app.towers = []
 
     app.tiles = []
     for i in range(app.tileCols):
@@ -190,12 +150,30 @@ def init(app):
     app.entrance = app.tiles[0][app.tileRows // 2]
     app.exit = app.tiles[app.tileCols - 1][app.tileRows // 2]
 
-    #add UI buttons
-    ui.instantiate(app, ui.Button(75, app.height - 75, 70, 70, color="white", dimColor="gray",
-     text="Dart\nTower", textFont="Helvetica 15 bold", clickCallback=buyTowerDown, bid=0))
-
     calculatePath(app)
 
+    #------------- add game UI --------------
+
+    #buy towers background
+    ui.Rectangle(app, app.width - app.rightMargin / 2, app.height / 2,
+        app.rightMargin, app.height, color="#8a4a22")
+    ui.Text(app, app.width - app.rightMargin / 2, 25, anchor="n", text="Buy Towers", font="Helvetica 25 bold", color="white")
+
+    #buy tower buttons
+    ui.Button(app, app.width - app.rightMargin / 2, 150, 100, 100, color="white", dimColor="lightgreen",
+     text="Dart\nTower", textFont="Helvetica 15 bold", clickCallback=buyTowerDown, bid=0)
+
+    #health, speed
+    app.enemyTypes = {"red": (5, 1), "blue": (10, 1.5), "green": (15, 2),
+    "yellow": (20, 2.5), "black": (30, 1.5), "white": (35, 1.8)}
+
+    #color, number, interval, pause after
+    app.enemyWaves = [("red", 10, 1, 5), ("blue", 10, 1.5, 5), ("red", 20, 0.8, 5), ("green", 7, 2, 10),
+    ("yellow", 3, 3, 5), ("black", 100, 5, 10)]
+
+    app.currentWave = 0
+    app.enemySpawnDelay = 3
+    app.currentEnemySpawn = 0 #current number of squares spawned
 
 def calculatePath(app):
     app.pathway = app.entrance.pathFindToTile(app.exit)
@@ -203,12 +181,29 @@ def calculatePath(app):
 def timerFired(app):
     app.deltaTime = time.time() - app.lastCall
 
-    app.enemySpawnDelay -= app.deltaTime
-    if app.enemySpawnDelay < 0:
-        app.enemySpawnDelay = 5
-        Enemy(app)
+    if app.enemySpawnDelay > 0:
+        app.enemySpawnDelay -= app.deltaTime
+    if app.enemySpawnDelay <= 0 and app.currentWave < len(app.enemyWaves):
+        if app.currentEnemySpawn < app.enemyWaves[app.currentWave][1]:
+            enemy.Enemy(app, health=app.enemyTypes[app.enemyWaves[app.currentWave][0]][0],
+                speed=app.enemyTypes[app.enemyWaves[app.currentWave][0]][1],
+                color=app.enemyWaves[app.currentWave][0])
+            app.enemySpawnDelay = app.enemyWaves[app.currentWave][2]
+            app.currentEnemySpawn += 1
+        else:
+            app.enemySpawnDelay = app.enemyWaves[app.currentWave][3]
+            app.currentWave += 1
+            app.currentEnemySpawn = 0
+
+    # app.enemySpawnDelay -= app.deltaTime
+    # if app.enemySpawnDelay < 0:
+    #     app.enemySpawnDelay = 1
+    #     enemy.Enemy(app)
 
     for i in app.enemies:
+        i.update(app)
+
+    for i in app.towers:
         i.update(app)
 
     app.lastCall = time.time()
@@ -234,6 +229,8 @@ def tryPlaceTower(app, x, y, tower):
     if canPlaceTower(app, x, y):
         col, row = getTileFromMousePos(app, x, y)
         app.tiles[col][row].isWall = True
+
+        towers.DartTower(app, col, row)
 
         #make all enemies recalculate path
         for i in app.enemies:
@@ -285,10 +282,10 @@ def keyPressed(app, event):
 
 #both use height for square grid
 def getTileWidth(app):
-    return app.width / (app.tileCols - 1)
+    return (app.width - app.rightMargin) / (app.tileCols - 1)
 
 def getTileHeight(app):
-    return (app.height - app.bottomMargin) / app.tileRows
+    return app.height / app.tileRows
 
 def getTileFromMousePos(app, x, y):
     col = int(x / getTileWidth(app))
@@ -302,9 +299,10 @@ def getTileFromMousePos(app, x, y):
 def redrawAll(app, canvas):
     #background
     canvas.create_rectangle(0, 0, app.width, app.height, fill="black", width=0)
+    
 
     tileWidth, tileHeight = getTileWidth(app), getTileHeight(app)
-    tileMargin = 0 #app.width / 500 #space between tiles
+    tileMargin = 0 #space between tiles
 
     for col in app.tiles:
         for tile in col:
@@ -314,22 +312,26 @@ def redrawAll(app, canvas):
             y2 = tileHeight * (tile.y + 1) - tileMargin
 
             color = "lightgreen"
-            # if tile == app.entrance:
-            #     color = "green"
-            # elif tile == app.exit:
-            #     color = "red"
             if tile.isWall:
                 color = "white"
+
             # elif tile in app.pathway or tile == app.entrance:
             #     color = "blue"
             
             canvas.create_rectangle(x1, y1, x2, y2, fill=color, width=0)
+            #canvas.create_rectangle(x1, y1, x2, y2, fill=color, width=0)
 
     #geometry
     geometry.renderAll(app, canvas)
 
     #ui: always on top of game elements
     ui.renderAll(app, canvas)
+
+    circleSize = 500
+    scale = circleSize / app.image1.size[0]
+    scaledCircle = app.scaleImage(app.image1, scale)
+
+    # canvas.create_image(app.width / 2, app.height / 2, image=ImageTk.PhotoImage(scaledCircle))
 
     #building hover
     if app.buyingTower:
@@ -342,6 +344,10 @@ def redrawAll(app, canvas):
             app.currentMouseCoords[0] + getTileWidth(app) / 2,
             app.currentMouseCoords[1] + getTileHeight(app) / 2, 
             fill=color, width=0)
+
+    #fps display
+    canvas.create_text(10, 10, anchor="nw", text=f"{int(1 / app.deltaTime)} fps", 
+        font="Helvetica 25", fill="black")
 
 def main():
     runApp(width=1024, height=768)
