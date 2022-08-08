@@ -10,7 +10,7 @@ class Rectangle:
     #   add it to the right layer order (do a binary search of list)
     def __init__(self, app, x, y, width, height,
         rotation=0, layer=0, parent=None, color="black", name="rectangle",
-        outlineWidth=0, outlineColor=""):
+        outlineWidth=0, outlineColor="", isActive=True):
 
         self.name = name
         self.x = x
@@ -21,6 +21,7 @@ class Rectangle:
         self.rotation = rotation
         self.outlineWidth = outlineWidth
         self.outlineColor = outlineColor
+        self.isActive = isActive
 
         self.spawnTime = time.time()
 
@@ -117,6 +118,9 @@ class Rectangle:
         self.updateGlobalRotation()
 
     def render(self, app, canvas):
+        if not self.isActive:
+            return
+            
         self.updateGlobalRotation()
         self.updateGlobalPosition()
 

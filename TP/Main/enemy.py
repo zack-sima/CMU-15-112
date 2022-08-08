@@ -13,12 +13,14 @@ class Enemy:
 
         self.maxHealth = health
         self.health = health
+        self.freezeTimer = 0
 
         self.square = geometry.Rectangle(app, -100, 0, main.getTileWidth(app) * 0.8, main.getTileHeight(app) * 0.8, color=color, layer=2)
-        
+        self.freezeSquare = geometry.Rectangle(app, 0, 0, main.getTileWidth(app) * 0.5, main.getTileWidth(app) * 0.5, parent=self.square, color="lightblue", layer=2)
+        self.freezeSquare.isActive = False #not frozen at the beginning
+
         self.healthBarRight = geometry.Rectangle(app, x=0, y=self.square.height / 2 + 10, width=self.square.width, height=7, parent=self.square, color="black", layer=5)
         self.healthBarLeft = geometry.Rectangle(app, x=0, y=self.square.height / 2 + 10, width=self.square.width, height=7, parent=self.square, color="#00FF00", layer=5)
-
         
         self.x = (self.currentPosition[0] + 0.5) * main.getTileWidth(app)
         self.y = (self.currentPosition[1] + 0.5) * main.getTileHeight(app)
@@ -36,6 +38,7 @@ class Enemy:
     def destroy(self, app):
         app.enemies.remove(self)
 
+        self.freezeSquare.destroy(app)
         self.square.destroy(app)
         self.healthBarLeft.destroy(app)
         self.healthBarRight.destroy(app)
@@ -47,13 +50,25 @@ class Enemy:
         if self.destroyed or app.paused:
             return
 
+        #frozen: third of normal speed
+        if self.freezeTimer > 0:
+            self.currentInterpolation += app.deltaTime * self.speed * 0.5
+
+            self.freezeTimer -= app.deltaTime
+            self.freezeSquare.isActive = True
+        else:
+            self.currentInterpolation += app.deltaTime * self.speed
+
+            self.freezeSquare.isActive = False
+
         self.healthBarLeft.width = self.square.width * self.health / self.maxHealth
         self.healthBarRight.width = self.square.width - self.healthBarLeft.width
 
         self.healthBarLeft.x = (self.health / self.maxHealth - 1) * self.square.width / 2
         self.healthBarRight.x = self.health / self.maxHealth * self.square.width / 2
 
-        self.currentInterpolation += app.deltaTime * self.speed
+        
+
         self.square.x = (self.currentPosition[0] + 0.5) * main.getTileWidth(app)
         self.square.y = (self.currentPosition[1] + 0.5) * main.getTileHeight(app)
 

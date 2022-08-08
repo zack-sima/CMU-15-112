@@ -32,21 +32,22 @@ class Text(UIObject):
             font=self.font, anchor=self.anchor, fill=self.color, justify=self.alignment)
 
 class Rectangle(UIObject):
-    def __init__(self, app, x, y, width, height, color="black", outline=0):
+    def __init__(self, app, x, y, width, height, color="black", outlineWidth=0, outlineColor="black"):
         super().__init__(app, x, y)
 
         self.width = width
         self.height = height
         self.color = color
-        self.outline = outline
+        self.outlineWidth = outlineWidth
+        self.outlineColor = outlineColor
 
     def render(self, app, canvas):
         canvas.create_rectangle(self.x - self.width / 2, self.y - self.height / 2,
-            self.x + self.width / 2, self.y + self.height / 2, fill=self.color, width=self.outline)
+            self.x + self.width / 2, self.y + self.height / 2, fill=self.color, width=self.outlineWidth, outline=self.outlineColor)
 
 class Button(UIObject):
-    def __init__(self, app, x, y, width, height, color="black", dimColor="", outlineWidth=0, outlineColor="", outlineDimColor="",
-        text="", textColor="black", textAlignment="center", textFont="Helvetica 15 bold", clickCallback=None, releaseCallback=None, bid=0):
+    def __init__(self, app, x, y, width, height, color="black", dimColor="", outlineWidth=0, outlineColor="black", outlineDimColor="",
+        text="", textColor="black", textDimColor="", textAlignment="center", textFont="Helvetica 15 bold", clickCallback=None, releaseCallback=None, bid=0):
         super().__init__(app, x, y)
 
         #note: b-id is for identifying buttons in callback
@@ -56,11 +57,22 @@ class Button(UIObject):
         self.color = color
         self.currentColor = color
         self.textColor = textColor
+        self.currentTextColor = textColor
+
+        if textDimColor == "":
+            self.textDimColor = textColor
+        else:
+            self.textDimColor = textDimColor
 
         if dimColor == "":
             self.dimColor = color
         else:
             self.dimColor = dimColor
+
+        if outlineDimColor == "":
+            self.outlineDimColor = outlineColor
+        else:
+            self.outlineDimColor = outlineDimColor
 
         self.clickCallback = clickCallback
         self.releaseCallback = releaseCallback
@@ -70,7 +82,6 @@ class Button(UIObject):
         self.textFont = textFont
         self.outlineWidth = outlineWidth
         self.outlineColor = outlineColor
-        self.outlineDimColor = outlineDimColor
         self.currentOutlineColor = outlineColor
 
     #mouse inside of button coords
@@ -85,6 +96,7 @@ class Button(UIObject):
         if self.mouseInSelf(event.x, event.y):
             self.currentColor = self.dimColor
             self.currentOutlineColor = self.outlineDimColor
+            self.currentTextColor = self.textDimColor
 
             self.clickedInSelf = True
             if self.clickCallback != None:
@@ -98,6 +110,8 @@ class Button(UIObject):
 
         self.currentOutlineColor = self.outlineColor
         self.currentColor = self.color
+        self.currentTextColor = self.textColor
+
         self.clickedInSelf = False
 
     #destroys this object from both memory and render list
@@ -109,7 +123,7 @@ class Button(UIObject):
         canvas.create_rectangle(self.x - self.width / 2, self.y - self.height / 2,
             self.x + self.width / 2, self.y + self.height / 2, fill=self.currentColor, width=self.outlineWidth,
             outline=self.currentOutlineColor)
-        canvas.create_text(self.x, self.y, text=self.text, fill=self.textColor, anchor=self.textAlignment, justify="center", font=self.textFont)
+        canvas.create_text(self.x, self.y, text=self.text, fill=self.currentTextColor, anchor=self.textAlignment, justify="center", font=self.textFont)
 
 def init(app):
     app.uiObjects = []
