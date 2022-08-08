@@ -1,4 +1,4 @@
-import math, geometry, copy, main
+import math, geometry, copy, main, levels
 
 class Enemy:
     def __init__(self, app, health=5, color="red", speed=1):
@@ -14,6 +14,7 @@ class Enemy:
         self.maxHealth = health
         self.health = health
         self.freezeTimer = 0
+        self.color = color
 
         self.square = geometry.Rectangle(app, -100, 0, main.getTileWidth(app) * 0.8, main.getTileHeight(app) * 0.8, color=color, layer=2)
         self.freezeSquare = geometry.Rectangle(app, 0, 0, main.getTileWidth(app) * 0.5, main.getTileWidth(app) * 0.5, parent=self.square, color="lightblue", layer=2)
@@ -33,6 +34,8 @@ class Enemy:
     def loseHealth(self, app, damage):
         self.health -= damage
         if self.health <= 0:
+            #give player money
+            app.money += app.enemyTypes[self.color][2]
             self.destroy(app)
 
     def destroy(self, app):
@@ -83,7 +86,8 @@ class Enemy:
                 self.currentPosition = (self.path[0].x, self.path[0].y)
                 self.path.pop(0)
                 if len(self.path) == 0:
-                    # print("destination reached")
+                    #player loses health; check player
+                    main.playerLoseHealth(app)
                     self.destroy(app)
 
             #define coordinates so it's easier for towers to track

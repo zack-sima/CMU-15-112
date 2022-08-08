@@ -140,6 +140,29 @@ def menuInit(app):
         color="palegreen1", dimColor="green2", outlineWidth=2, textColor="black", 
         textFont="Helvetica 30", releaseCallback=goToGame)
 
+def playerLoseHealth(app):
+    app.health -= 1
+
+    #check lose condition
+    if app.health <= 0:
+        app.health = 0
+
+        if app.gameOver:
+            return
+
+        app.gameOver = True
+
+        #game over ui
+        ui.Rectangle(app, app.width / 2, app.height / 2, 370, 250, color="gray")
+        ui.Text(app, app.width / 2, app.height / 2 - 50, "Game Over", color="white", font="Helvetica 50 bold")
+        ui.Button(app, app.width / 2, app.height / 2 + 50, 300, 51, text="Return to Menu", releaseCallback=returnToMenu,
+            color="white", textColor="black", dimColor="lightgreen", textFont="Helvetica 30")
+
+#game over button callback
+def returnToMenu(app, button):
+    if app.scene != "menu":
+        changeScene(app, "menu")
+
 def gameInit(app):
     #initialize levels module
     levels.init(app, level=1)
@@ -148,6 +171,9 @@ def gameInit(app):
     app.tileCols, app.tileRows = 16, 15 
     app.rightMargin = 256
     app.money = 500 #starting cash
+    app.health = 30 #starting health
+
+    app.cheatString = "" #cheat string for free money and health
 
     app.pathway = [] #temporary enemy pathway
     app.deleteWalls = False #keypress trigger
@@ -159,6 +185,8 @@ def gameInit(app):
     app.selectedTower = None
     app.paused = False
     app.showFPS = False
+    app.gameOver = False
+    app.optionsOn = False
 
     app.tiles = []
     for i in range(app.tileCols):
@@ -185,7 +213,7 @@ def gameInit(app):
     #buy tower UI
     app.buyTowerText = ui.Text(app, app.width - app.rightMargin / 2, 100, anchor="n", text="Buy Towers", font="Helvetica 25 bold", color="white")
 
-    app.towerPrices = [[100, 125, 150], [350, 300, 500], [200, 100, 150]]
+    app.towerPrices = [[75, 50, 75], [300, 250, 350], [150, 100, 150]]
 
 
     app.dartTowerButton = ui.Button(app, app.width - app.rightMargin / 2, 225, 100, 100, color="white", dimColor="lightgreen",
@@ -215,16 +243,45 @@ def gameInit(app):
     app.manageTowerUI = [app.manageTowerText, app.toggleTargetModeButton, app.upgradeTowerButton, app.sellTowerButton]
 
     #health and money display
-    app.healthText = ui.Rectangle(app, app.width - app.rightMargin - 200, 35, 35, 35, color="yellow", outlineWidth=3, outlineColor="black")
+    app.moneyIcon = ui.Rectangle(app, app.width - app.rightMargin - 250, 35, 35, 35, color="yellow", outlineWidth=3, outlineColor="black")
+    app.healthIcon = ui.Rectangle(app, app.width - app.rightMargin - 100, 35, 35, 35, color="red", outlineWidth=3, outlineColor="black")
+    app.moneyText = ui.Text(app, app.width - app.rightMargin - 215, 35, str(app.money), anchor="w", alignment="left", font="Helvetica 27")
+    app.healthText = ui.Text(app, app.width - app.rightMargin - 65, 35, str(app.health), anchor="w", alignment="left", font="Helvetica 27")
 
-    #pause button
-    app.pauseButton = ui.Button(app, app.width - app.rightMargin / 2, 50, 50, 50, color="", dimColor="",
+    #pause & options button
+    app.pauseButton = ui.Button(app, app.width - app.rightMargin / 2 - 35, 50, 50, 50, color="", dimColor="",
         outlineColor="white", textFont="Helvetica 18 bold", outlineDimColor="lightgreen", outlineWidth=3, text="=",
         textColor="white", textDimColor="lightgreen", releaseCallback=togglePause, bid=0)
+    app.optionsButton = ui.Button(app, app.width - app.rightMargin / 2 + 35, 50, 50, 50, color="", dimColor="",
+        outlineColor="white", textFont="Helvetica 18 bold", outlineDimColor="lightgreen", outlineWidth=3, text="#",
+        textColor="white", textDimColor="lightgreen", releaseCallback=toggleOptions, bid=0)
 
     #round level
     app.roundText = ui.Text(app, 15, 15, text=f"Round 1/{len(app.rounds)}",
         font="Helvetica 35 bold", anchor="nw", alignment="left")
+
+    #options UI
+    u1 = ui.Rectangle(app, app.width / 2, app.height / 2, 370, 300, color="gray")
+    u2 = ui.Text(app, app.width / 2, app.height / 2 - 75, "Options", color="white", font="Helvetica 50 bold")
+    u3 = ui.Button(app, app.width / 2, app.height / 2 + 20, 300, 51, text="Continue Game", releaseCallback=toggleOptions,
+        color="white", textColor="black", dimColor="lightgreen", textFont="Helvetica 30")
+    u4 = ui.Button(app, app.width / 2, app.height / 2 + 90, 300, 51, text="Return to Menu", releaseCallback=returnToMenu,
+        color="white", textColor="black", dimColor="lightgreen", textFont="Helvetica 30")
+    app.optionsUI = [u1, u2, u3, u4]
+
+    #disables the rects
+    toggleOptions(app)
+    toggleOptions(app)
+
+def toggleOptions(app, button=None):
+    app.optionsOn = not app.optionsOn
+
+    if app.optionsOn:
+        for i in app.optionsUI:
+            i.isActive = True
+    else:
+        for i in app.optionsUI:
+            i.isActive = False
 
 def toggleSelectedTowerMode(app, button):
     if app.selectedTower != None:
@@ -232,6 +289,8 @@ def toggleSelectedTowerMode(app, button):
         updateTowerUI(app)
 
 def togglePause(app, button):
+    if app.gameOver:
+        return
     app.paused = not app.paused
     if app.paused:
         app.pauseButton.text = ">"
@@ -239,26 +298,33 @@ def togglePause(app, button):
         app.pauseButton.text = "ll"
 
 def buyTowerDown(app, button):
-    app.buyingTower = True
-    app.buyingTowerId = button.bid
+    if app.money >= app.towerPrices[button.bid][0]:
+        app.buyingTower = True
+        app.buyingTowerId = button.bid
 
 def upgradeSelectedTower(app, button):
-    if app.selectedTower != None:
-        app.selectedTower.upgrade(app)
+    if app.selectedTower != None and app.selectedTower.level < app.selectedTower.maxLevel:
+        if app.money >= app.towerPrices[app.selectedTower.tid][app.selectedTower.level]:
+            app.money -= app.towerPrices[app.selectedTower.tid][app.selectedTower.level]
+            app.selectedTower.upgrade(app)
 
 def sellSelectedTower(app, button):
+    #only refunds 70%
     if app.selectedTower != None:
+        app.money += int(checkTowerPrice(app, app.selectedTower.tid, app.selectedTower.level) * 0.7)
         app.tiles[app.selectedTower.col][app.selectedTower.row].isWall = False
         app.tiles[app.selectedTower.col][app.selectedTower.row].tower = None
         app.selectedTower.destroy(app)
         app.selectedTower = None
         recalculateAllPaths(app)
 
+def checkTowerPrice(app, towerId, level):
+    return sum(app.towerPrices[towerId][:level])
+
 def calculatePath(app):
     app.pathway = app.entrance.pathFindToTile(app.exit)
 
 def update(app):
-    app.roundText.text = f"Round {app.currentRound + 1}/{len(app.rounds)}"
     if app.enemySpawnDelay > 0:
         app.enemySpawnDelay -= app.deltaTime
 
@@ -281,10 +347,38 @@ def update(app):
             #new round
             if app.currentRound < len(app.rounds) - 1:
                 app.currentRound += 1
+
+                #more money
+                app.money += 100 + app.currentRound * 10
+
                 app.currentWave = 0
                 app.enemyWave = app.rounds[app.currentRound]
 
+
+    if app.currentRound == len(app.rounds) - 1 and app.currentWave >= len(app.enemyWave): #last round
+        #check that no enemies are alive
+        enemiesAlive = False
+        for e in app.enemies:
+            if not e.destroyed:
+                enemiesAlive = True
+                break
+
+        if not app.gameOver and not enemiesAlive:
+            #win game
+            app.gameOver = True
+
+            #win game ui
+            ui.Rectangle(app, app.width / 2, app.height / 2, 370, 250, color="gray")
+            ui.Text(app, app.width / 2, app.height / 2 - 50, "You Win!", color="white", font="Helvetica 50 bold")
+            ui.Button(app, app.width / 2, app.height / 2 + 50, 300, 51, text="Return to Menu", releaseCallback=returnToMenu,
+                color="white", textColor="black", dimColor="lightgreen", textFont="Helvetica 30")
+
 def updateEvenPaused(app):
+    #ui displays
+    app.roundText.text = f"Round {app.currentRound + 1}/{len(app.rounds)}"
+    app.healthText.text = str(app.health)
+    app.moneyText.text = str(app.money)
+
     for i in app.enemies:
         i.update(app)
 
@@ -295,7 +389,7 @@ def timerFired(app):
     app.deltaTime = time.time() - app.lastCall
 
     if app.scene == "game":
-        if not app.paused:
+        if not app.paused and not app.gameOver:
             update(app)
 
         updateEvenPaused(app)
@@ -331,7 +425,9 @@ def updateTowerUI(app):
         if app.selectedTower.level == app.selectedTower.maxLevel:
             app.upgradeTowerButton.text = "Max Level"
         else:
-            app.upgradeTowerButton.text = "Upgrade\nTower"
+            app.upgradeTowerButton.text = f"Upgrade\nTower\n\n${app.towerPrices[app.selectedTower.tid][app.selectedTower.level]}"
+
+        app.sellTowerButton.text = f"Sell\nTower\n\n+${int(checkTowerPrice(app, app.selectedTower.tid, app.selectedTower.level) * 0.7)}"
 
         if app.selectedTower.targetMode == 0:
             app.toggleTargetModeButton.text = "Target: first"
@@ -358,12 +454,31 @@ def keyPressed(app, event):
     if event.key == "f":
         app.showFPS = not app.showFPS
 
+    app.cheatString += event.key
+
+    moneyCode = "showmethemoney"
+    livesCode = "showmethelives"
+
+    while app.cheatString != "" and app.cheatString not in moneyCode and app.cheatString not in livesCode:
+        app.cheatString = app.cheatString[1:]
+    
+    if app.cheatString == moneyCode:
+        app.cheatString = ""
+        app.money += 1000
+    elif app.cheatString == livesCode:
+        app.cheatString = ""
+        app.health += 1000
+
+
+
 
 
 def tryPlaceTower(app, x, y, tower):
     if canPlaceTower(app, x, y):
         col, row = getTileFromMousePos(app, x, y)
         app.tiles[col][row].isWall = True
+
+        app.money -= app.towerPrices[tower][0]
 
         t = None
         if tower == 0:
