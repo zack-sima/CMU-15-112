@@ -1,4 +1,37 @@
-import geometry, main
+import geometry, main, math
+
+class Explosion:
+	def __init__(self, app, x, y, radius, damage=1, freezeTimer=0):
+		self.x = x
+		self.y = y
+		self.destroyed = False
+		self.currentRadius = 1
+		self.radius = radius
+		self.damage = damage
+		self.freezeTimer = freezeTimer
+		self.circle = geometry.Circle(app, x, y, 1, color="", outlineWidth=3, outlineColor="black", layer=7)
+
+		#check collision
+		for e in app.enemies:
+			if geometry.distance(self.x, self.y, e.x, e.y) < e.square.width / 2 + self.radius + 10:
+				target = e
+				target.freezeTimer = max(target.freezeTimer, self.freezeTimer)
+				target.loseHealth(app, self.damage)
+
+	def update(self, app):
+		if self.destroyed:
+			return
+
+		self.currentRadius += app.deltaTime * 7500 / (self.currentRadius + 20)
+
+		self.circle.radius = self.currentRadius
+
+		if self.currentRadius > self.radius:
+			self.destroy(app)
+
+	def destroy(self, app):
+		self.destroyed = True
+		self.circle.destroy(app)
 
 class Dart:
 	def __init__(self, app, target, sender, damage=1, freezeTimer=0):
@@ -30,9 +63,9 @@ class Dart:
 		#check collision
 		for e in app.enemies:
 			if geometry.distance(self.projectile.x, self.projectile.y, e.x, e.y) < e.square.width / 2 + 10:
-				e.freezeTimer = max(e.freezeTimer, self.freezeTimer)
-				e.loseHealth(app, self.damage)
-				#print("hit enemy")
+				target = e
+				target.freezeTimer = max(target.freezeTimer, self.freezeTimer)
+				target.loseHealth(app, self.damage)
 				self.destroy(app)
 				break
 
@@ -42,6 +75,42 @@ class Dart:
 		self.projectile.destroy(app)
 		self.sender = None
 		self.destroyed = True
+
+class ExplosiveDart(Dart):
+	def __init__(self, app, target, sender, damage=1, freezeTimer=0):
+		super().__init__(app, target, sender, damage=damage, freezeTimer=freezeTimer)
+		self.explosion = None
+		self.exploding = False
+
+	def update(self, app):
+		if self.destroyed:
+			return
+
+		if self.exploding:
+			self.explosion.update(app)
+			if self.explosion.destroyed:
+				self.destroy(app)
+			return
+
+		#destroy projectile if too much time has passed
+		self.destroyTimer -= app.deltaTime
+		if self.destroyTimer <= 0:
+			self.destroy(app)
+			return
+
+		if self.target != None and not self.target.destroyed:
+			#look at target
+			self.projectile.lookAt(self.target.x, self.target.y)
+
+		#check collision
+		for e in app.enemies:
+			if geometry.distance(self.projectile.x, self.projectile.y, e.x, e.y) < e.square.width / 2 + 10:
+				self.projectile.color = ""
+				self.explosion = Explosion(app, self.projectile.x, self.projectile.y, 75, damage=self.damage)
+				self.exploding = True
+				break
+
+		self.projectile.translate(app.deltaTime * 350, 0) #100px/second forward
 
 class Tower:
 	def __init__(self, app, col, row, detectionRange, level=1, maxLevel=3):
@@ -172,18 +241,18 @@ class DartTower(Tower):
 		if self.level == 1:
 			self.detectionRange = 150
 			self.upgradeOutline.outlineColor = ""
-			self.shootInterval = 0.5
-			self.damage = 1
+			self.shootInterval = 1
+			self.damage = 2
 		elif self.level == 2:
 			self.detectionRange = 175
 			self.upgradeOutline.outlineColor = "gray"
-			self.shootInterval = 0.3
-			self.damage = 1
+			self.shootInterval = 0.7
+			self.damage = 3
 		elif self.level == 3:
 			self.detectionRange = 200
 			self.upgradeOutline.outlineColor = "black"
-			self.shootInterval = 0.3
-			self.damage = 2
+			self.shootInterval = 0.55
+			self.damage = 5
 
 
 	def upgrade(self, app):
@@ -217,6 +286,8 @@ class GatlingTower(DartTower):
 
 		self.tid = 1
 
+		self.name = "Gatling Tower"
+
 		self.turretBase.color = "lightgreen"
 
 		self.setLevelProperties(app)
@@ -231,19 +302,21 @@ class GatlingTower(DartTower):
 		elif self.level == 2:
 			self.detectionRange = 225
 			self.upgradeOutline.outlineColor = "gray"
-			self.shootInterval = 0.1
-			self.damage = 1
+			self.shootInterval = 0.12
+			self.damage = 2
 		elif self.level == 3:
 			self.detectionRange = 250
 			self.upgradeOutline.outlineColor = "black"
-			self.shootInterval = 0.1
-			self.damage = 2
+			self.shootInterval = 0.08
+			self.damage = 3
 
 class FreezeTower(DartTower):
 	def __init__(self, app, col, row):
 		super().__init__(app, col, row, projectileColor="blue")
 
 		self.tid = 2
+
+		self.name = "Freeze Tower"
 
 		self.turretBase.color = "lightblue"
 
@@ -273,4 +346,35 @@ class FreezeTower(DartTower):
 	def spawnProjectile(self, app):
 		self.projectiles.append(Dart(app, self.currentTarget, self, damage=self.damage, freezeTimer=self.freezeTimer))
 
+class CannonTower(DartTower):
+	def __init__(self, app, col, row):
+		super().__init__(app, col, row, projectileColor="red")
+		self.tid = 3
+
+		self.name = "Cannon Tower"
+
+		self.turretBase.color = "red"
+
+		self.setLevelProperties(app)
+
+	def setLevelProperties(self, app):
+		#check level properties
+		if self.level == 1:
+			self.detectionRange = 225
+			self.upgradeOutline.outlineColor = ""
+			self.shootInterval = 1.5
+			self.damage = 2
+		elif self.level == 2:
+			self.detectionRange = 250
+			self.upgradeOutline.outlineColor = "gray"
+			self.shootInterval = 1.2
+			self.damage = 3
+		elif self.level == 3:
+			self.detectionRange = 275
+			self.upgradeOutline.outlineColor = "black"
+			self.shootInterval = 1
+			self.damage = 5
+
+	def spawnProjectile(self, app):
+		self.projectiles.append(ExplosiveDart(app, self.currentTarget, self, damage=self.damage))
 

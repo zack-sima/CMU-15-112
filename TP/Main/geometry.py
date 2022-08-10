@@ -3,7 +3,52 @@ import random, string, math, time
 def distance(x1, y1, x2, y2):
     return math.sqrt((x2 - x1) ** 2 + (y2 - y1) ** 2)
 
-class Rectangle:
+class Shape:
+    def __init__(self, app, color, outlineColor, outlineWidth, layer, isActive=True):
+        self.color = color
+        self.outlineColor = outlineColor
+        self.outlineWidth = outlineWidth
+        self.layer = layer
+        self.isActive = isActive
+
+        if app.renderedObjects.get(self.layer) == None:
+            app.renderedObjects[self.layer] = []
+        app.renderedObjects[self.layer].append(self)
+
+    def render(self, app, canvas): pass
+    def destroy(self, app, canvas): pass
+
+class Polygon(Shape):
+    def __init__(self, app, *argv, color="black", outlineColor="", outlineWidth=0, layer=0):
+        super().__init__(app, color, outlineColor, outlineWidth, layer)
+        self.points = []
+        for arg in argv:
+            self.points.append(arg)
+
+    def render(self, app, canvas):
+        canvas.create_polygon(*self.points, fill=self.color, outline=self.outlineColor, width=self.outlineWidth)
+
+    def destroy(self, app):
+        if self in app.renderedObjects[self.layer]:
+            app.renderedObjects[self.layer].remove(self) 
+
+class Circle(Shape):
+    def __init__(self, app, x, y, radius, color="black", outlineColor="black", outlineWidth=0, layer=0):
+        super().__init__(app, color, outlineColor, outlineWidth, layer)
+
+        self.x = x
+        self.y = y
+        self.radius = radius
+
+    def render(self, app, canvas):
+        canvas.create_oval(self.x - self.radius, self.y - self.radius, self.x + self.radius, self.y + self.radius,
+            fill=self.color, width=self.outlineWidth, outline=self.outlineColor)
+
+    def destroy(self, app):
+        if self in app.renderedObjects[self.layer]:
+            app.renderedObjects[self.layer].remove(self) 
+
+class Rectangle(Shape):
     #center: (x, y); if parent exists, all x and y are local
     #the higher the layer, the later it is rendered (thus on top)
     #   when adding this object to the list of rendered objects,
@@ -12,6 +57,8 @@ class Rectangle:
         rotation=0, layer=0, parent=None, color="black", name="rectangle",
         outlineWidth=0, outlineColor="", isActive=True):
 
+        super().__init__(app, color, outlineColor, outlineWidth, layer, isActive=isActive)
+
         self.name = name
         self.x = x
         self.y = y
@@ -19,9 +66,6 @@ class Rectangle:
         self.height = height
         self.parent = parent
         self.rotation = rotation
-        self.outlineWidth = outlineWidth
-        self.outlineColor = outlineColor
-        self.isActive = isActive
 
         self.spawnTime = time.time()
 
@@ -33,13 +77,6 @@ class Rectangle:
             self.globalRotation = rotation
             self.globalX = x
             self.globalY = y
-        self.layer = layer
-        self.color = color
-
-        if app.renderedObjects.get(self.layer) == None:
-            app.renderedObjects[self.layer] = []
-
-        app.renderedObjects[self.layer].append(self)
 
     def translate(self, x, y, local=True):
         if not local:
@@ -166,4 +203,5 @@ def renderAll(app, canvas):
             app.renderedObjects[i].remove(None)
 
         for j in app.renderedObjects[i]:
-            j.render(app, canvas)
+            if j.isActive:
+                j.render(app, canvas)

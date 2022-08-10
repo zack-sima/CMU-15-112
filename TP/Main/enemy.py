@@ -1,15 +1,22 @@
 import math, geometry, copy, main, levels
 
 class Enemy:
-    def __init__(self, app, health=5, color="red", speed=1):
+    def __init__(self, app, health=5, color="red", speed=1, pathNum=0): #pathnum is the path enemy chooses
         #interpolates between current tile and next tile
         self.currentInterpolation = 0
-        self.currentPosition = (-1, app.entrance.y) #-1 so it moves into the entrance
+
+        #coordinate before entering the main grid
+        if app.entrances[pathNum].x == 0: #x set to -1 to be before entrance
+            self.currentPosition = (-1, app.entrances[pathNum].y)
+        else: #assume y is at 0
+            self.currentPosition = (app.entrances[pathNum].x, -1)
 
         self.speed = speed #game tiles per second moved
 
-        self.path = copy.copy(app.pathway)
-        self.path.insert(0, app.entrance)
+        self.pathNum = pathNum
+        self.path = copy.copy(app.pathways[pathNum])
+
+        self.path.insert(0, app.entrances[pathNum])
 
         self.maxHealth = health
         self.health = health

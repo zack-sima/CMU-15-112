@@ -49,22 +49,34 @@ class Tile:
                 tile.pointToTile = None
 
     @staticmethod
-    def getTileNeighbors(app, tile):
+    def getTileNeighbors(app, tile, prioritizeVertical):
         neighbors = []
-        if tile.x > 0:
-            neighbors.append(app.tiles[tile.x - 1][tile.y])
-        if tile.x < app.tileCols - 1:
-            neighbors.append(app.tiles[tile.x + 1][tile.y])
-        if tile.y > 0:
-            neighbors.append(app.tiles[tile.x][tile.y - 1])
-        if tile.y < app.tileRows - 1:
-            neighbors.append(app.tiles[tile.x][tile.y + 1])
+        #look at horizontal first
+        if not prioritizeVertical:
+            if tile.x > 0:
+                neighbors.append(app.tiles[tile.x - 1][tile.y])
+            if tile.x < app.tileCols - 1:
+                neighbors.append(app.tiles[tile.x + 1][tile.y])
+            if tile.y > 0:
+                neighbors.append(app.tiles[tile.x][tile.y - 1])
+            if tile.y < app.tileRows - 1:
+                neighbors.append(app.tiles[tile.x][tile.y + 1])
+        else:
+            if tile.y > 0:
+                neighbors.append(app.tiles[tile.x][tile.y - 1])
+            if tile.y < app.tileRows - 1:
+                neighbors.append(app.tiles[tile.x][tile.y + 1])
+            if tile.x > 0:
+                neighbors.append(app.tiles[tile.x - 1][tile.y])
+            if tile.x < app.tileCols - 1:
+                neighbors.append(app.tiles[tile.x + 1][tile.y])
         return neighbors
 
     #pathfinds to the tile, avoidoing walls
     #my own floodfill pathfind implementation
     #A* pathfinding reference: https://www.youtube.com/watch?v=-L-WgKMFuhE
-    def pathFindToTile(self, target):
+    def pathFindToTile(self, target, prioritizeVertical=False):
+        #if prioritize vertical, look at vertical neighbors first (for top down search so that paths try to go down first)
         Tile.resetPathfindingPointers(self.app)
         currentTiles = [self]
         while True:
@@ -74,7 +86,7 @@ class Tile:
             noNewTiles = True
 
             for tile in currentTiles:
-                for checkTile in Tile.getTileNeighbors(self.app, tile):
+                for checkTile in Tile.getTileNeighbors(self.app, tile, prioritizeVertical):
                     if checkTile == target:
                         #target found, recursively add pointers to path and return
                         target.pointToTile = tile
@@ -91,7 +103,6 @@ class Tile:
 
                         path.reverse() #reversed list goes from start to finish
 
-                        #print(path)
                         return path
                     if not checkTile.isWall and checkTile.pointToTile == None\
                     and checkTile != self:
@@ -108,6 +119,9 @@ class Tile:
 
 def appStarted(app):
     app.scene = "menu" #only load game stuff when this is game scene
+
+    maps = ["grasslands", "volcano"]
+    app.map = maps[1] #map should be set outside of game scene
 
     app.deltaTime = .02 #actual time between current and next
     app.lastCall = time.time()
@@ -168,14 +182,14 @@ def gameInit(app):
     levels.init(app, level=1)
 
     #note: last col is nonvisible wall so that the enemy leaves the screen
-    app.tileCols, app.tileRows = 16, 15 
+    app.tileCols, app.tileRows = 16, 16 
     app.rightMargin = 256
     app.money = 500 #starting cash
     app.health = 30 #starting health
 
     app.cheatString = "" #cheat string for free money and health
 
-    app.pathway = [] #temporary enemy pathway
+    app.pathways = [[], []] #enemy paths
     app.deleteWalls = False #keypress trigger
     app.buyingTower = False
     app.buyinTowerId = 0
@@ -195,12 +209,52 @@ def gameInit(app):
             #new tile
             t = Tile(app, i, j)
             app.tiles[i].append(t)
-            if i == app.tileCols - 1:
-                t.isWall = True #last col is not seen but all walls
+
+            if i == app.tileCols - 1 or j == app.tileRows - 1:
+                t.isWall = True #last col/row is not seen but all walls
+
+    if app.map == "grasslands":
+        #only 1 entrance
+        app.entrances = [app.tiles[0][app.tileRows // 2 - 1]]
+        app.exits = [app.tiles[app.tileCols - 1][app.tileRows // 2 - 1]]
+    elif app.map == "volcano":
+        app.entrances = [app.tiles[0][app.tileRows // 2 - 1], app.tiles[app.tileCols // 2 - 1][0]]
+        app.exits = [app.tiles[app.tileCols - 1][app.tileRows // 2 - 1], app.tiles[app.tileCols // 2 - 1][app.tileRows - 1]]
+
+        #add lava tiles
+        lavaTiles = [
+        #corners
+        (0, 14), (0, 13), (0, 12), (0, 11), (0, 10),
+        (1, 14), (1, 13), (1, 12), #(1, 11),
+        (2, 14), (2, 13), #(2, 12),
+        (3, 14), #(3, 13),
+        (4, 14),
+
+        (0, 0), (0, 1), (0, 2), (0, 3), (0, 4),
+        (1, 0), (1, 1), (1, 2), #(1, 3),
+        (2, 0), (2, 1), #(2, 2),
+        (3, 0), #(3, 1),
+        (4, 0),
+
+        (14, 0), (14, 1), (14, 2), (14, 3), (14, 4),
+        (13, 0), (13, 1), (13, 2), #(13, 3),
+        (12, 0), (12, 1), #(12, 2),
+        (11, 0), #(11, 1),
+        (10, 0),
+
+        (14, 14), (14, 13), (14, 12), (14, 11), (14, 10),
+        (13, 14), (13, 13), (13, 12), #(13, 11),
+        (12, 14), (12, 13), #(12, 12),
+        (11, 14), #(11, 13),
+        (10, 14),
+
+        #extras
+        (6, 7), (7, 6), (7, 8), (8, 7)
+        ]
+        for t in lavaTiles:
+            app.tiles[t[0]][t[1]].isWall = True
 
 
-    app.entrance = app.tiles[0][app.tileRows // 2]
-    app.exit = app.tiles[app.tileCols - 1][app.tileRows // 2]
 
     calculatePath(app)
 
@@ -213,7 +267,7 @@ def gameInit(app):
     #buy tower UI
     app.buyTowerText = ui.Text(app, app.width - app.rightMargin / 2, 100, anchor="n", text="Buy Towers", font="Helvetica 25 bold", color="white")
 
-    app.towerPrices = [[75, 50, 75], [300, 250, 350], [150, 100, 150]]
+    app.towerPrices = [[75, 100, 150], [300, 400, 500], [150, 125, 150], [350, 450, 600]]
 
 
     app.dartTowerButton = ui.Button(app, app.width - app.rightMargin / 2, 225, 100, 100, color="white", dimColor="lightgreen",
@@ -225,7 +279,10 @@ def gameInit(app):
     app.freezeTowerButton = ui.Button(app, app.width - app.rightMargin / 2, 475, 100, 100, color="white", dimColor="lightgreen",
      text=f"Freeze\nTower\n\n${app.towerPrices[2][0]}", textFont="Helvetica 18 bold", clickCallback=buyTowerDown, bid=2)
 
-    app.buyTowerUI = [app.buyTowerText, app.dartTowerButton, app.gatlingTowerButton, app.freezeTowerButton]
+    app.cannonTowerButton = ui.Button(app, app.width - app.rightMargin / 2, 600, 100, 100, color="white", dimColor="lightgreen",
+     text=f"Cannon\nTower\n\n${app.towerPrices[3][0]}", textFont="Helvetica 18 bold", clickCallback=buyTowerDown, bid=3)
+
+    app.buyTowerUI = [app.buyTowerText, app.dartTowerButton, app.gatlingTowerButton, app.freezeTowerButton, app.cannonTowerButton]
 
     #upgrade/sell tower buttons
     app.manageTowerText = ui.Text(app, app.width - app.rightMargin / 2, 100, anchor="n",
@@ -241,6 +298,56 @@ def gameInit(app):
      text="Sell\nTower", textFont="Helvetica 18 bold", releaseCallback=sellSelectedTower, bid=0)
 
     app.manageTowerUI = [app.manageTowerText, app.toggleTargetModeButton, app.upgradeTowerButton, app.sellTowerButton]
+
+    #entrance/exits
+    for e in app.entrances:
+        xOffset = 0
+        yOffset = 0
+        if e.x == 0:
+            xOffset = -getTileWidth(app) * 0.7
+        elif e.y == 0:
+            yOffset = -getTileHeight(app) * 0.7
+        geometry.Rectangle(app, (e.x + 0.5) * getTileWidth(app) + xOffset,
+            (e.y + 0.5) * getTileHeight(app) + yOffset, getTileWidth(app), getTileHeight(app), color="black", layer=10)
+    for e in app.exits:
+        xOffset = 0
+        yOffset = 0
+        if e.x == app.tileCols - 1:
+            xOffset = -getTileWidth(app) * 0.3
+        elif e.y == app.tileRows - 1:
+            yOffset = -getTileHeight(app) * 0.3
+        geometry.Rectangle(app, (e.x + 0.5) * getTileWidth(app) + xOffset,
+            (e.y + 0.5) * getTileHeight(app) + yOffset, getTileWidth(app), getTileHeight(app), color="black", layer=10)
+
+    #make arrows
+    app.pathArrows = []
+
+    p1 = (0, (app.entrances[0].y + 0.5) * getTileHeight(app))
+    path1Arrow = geometry.Polygon(app, 
+        p1[0], p1[1] - 10,
+        p1[0], p1[1] + 10,
+        p1[0] + 70, p1[1] + 10,
+        p1[0] + 70, p1[1] + 20,
+        p1[0] + 100, p1[1], 
+        p1[0] + 70, p1[1] - 20,
+        p1[0] + 70, p1[1] - 10,
+        color="red")
+    path1Arrow.isActive = False
+    app.pathArrows.append(path1Arrow)
+
+    if len(app.entrances) > 1:
+        p2 = ((app.entrances[1].x + 0.5) * getTileWidth(app), 0)
+        path2Arrow = geometry.Polygon(app, 
+            p2[0] - 10, p2[1],
+            p2[0] + 10, p2[1],
+            p2[0] + 10, p2[1] + 70,
+            p2[0] + 20, p2[1] + 70,
+            p2[0], p2[1] + 100, 
+            p2[0] - 20, p2[1] + 70,
+            p2[0] - 10, p2[1] + 70,
+            color="red")
+        path2Arrow.isActive = False
+        app.pathArrows.append(path2Arrow)
 
     #health and money display
     app.moneyIcon = ui.Rectangle(app, app.width - app.rightMargin - 250, 35, 35, 35, color="yellow", outlineWidth=3, outlineColor="black")
@@ -322,18 +429,58 @@ def checkTowerPrice(app, towerId, level):
     return sum(app.towerPrices[towerId][:level])
 
 def calculatePath(app):
-    app.pathway = app.entrance.pathFindToTile(app.exit)
+    app.pathways = []
+    for i in range(len(app.entrances)):
+        prioritizeVertical = False
+        if i == 1: #second path
+            prioritizeVertical = True
+        app.pathways.append(app.entrances[i].pathFindToTile(app.exits[i], prioritizeVertical=prioritizeVertical))
 
 def update(app):
-    if app.enemySpawnDelay > 0:
+    #disable wave arrows
+    for arrow in app.pathArrows:
+        arrow.isActive = False
+
+    if app.enemySpawnDelay > 0 and app.currentRound < len(app.rounds) - 1:
         app.enemySpawnDelay -= app.deltaTime
+
+        enemiesAlive = False
+        if app.currentWave >= len(app.enemyWave): #make sure to only decrease timer if all troops are killed
+            for e in app.enemies:
+                if not e.destroyed:
+                    enemiesAlive = True
+                    break
+            if enemiesAlive:
+                app.enemySpawnDelay += app.deltaTime #add timer back if an enemy is still alive
+
+        if not enemiesAlive and (app.currentEnemySpawn == 0 and app.currentWave == 0 or\
+        app.currentWave >= len(app.enemyWave) and app.enemySpawnDelay < 3):
+            #enable wave arrows; check if next round has any from said path
+            hasPaths = [False] * len(app.entrances)
+
+            for spawn in app.rounds[app.currentRound + 1 if app.currentWave > 0 else 0]:
+                if len(spawn) < 5 or spawn[4] == 0: #path 0
+                    hasPaths[0] = True
+                elif len(spawn) >= 5 and spawn[4] > 0: #path 1
+                    hasPaths[spawn[4]] = True
+
+            for i in range(len(app.pathArrows)):
+                if hasPaths[i] and len(app.entrances) > i:
+                    app.pathArrows[i].isActive = True
+
 
     if app.enemySpawnDelay <= 0:
         if app.currentWave < len(app.enemyWave):
             if app.currentEnemySpawn < app.enemyWave[app.currentWave][1]:
+                path = 0
+                
+                #note: defaults back to 0 if path is not in current map
+                if len(app.enemyWave[app.currentWave]) == 5 and len(app.entrances) > app.enemyWave[app.currentWave][4]:
+                    path = app.enemyWave[app.currentWave][4]
+
                 enemy.Enemy(app, health=app.enemyTypes[app.enemyWave[app.currentWave][0]][0],
                     speed=app.enemyTypes[app.enemyWave[app.currentWave][0]][1],
-                    color=app.enemyWave[app.currentWave][0])
+                    color=app.enemyWave[app.currentWave][0], pathNum=path)
                 app.enemySpawnDelay = app.enemyWave[app.currentWave][2]
                 app.currentEnemySpawn += 1
 
@@ -469,10 +616,6 @@ def keyPressed(app, event):
         app.cheatString = ""
         app.health += 1000
 
-
-
-
-
 def tryPlaceTower(app, x, y, tower):
     if canPlaceTower(app, x, y):
         col, row = getTileFromMousePos(app, x, y)
@@ -487,6 +630,8 @@ def tryPlaceTower(app, x, y, tower):
             t = towers.GatlingTower(app, col, row)
         elif tower == 2:
             t = towers.FreezeTower(app, col, row)
+        elif tower == 3:
+            t = towers.CannonTower(app, col, row)
         else:
             print("error: no tower with button id; defaulting to dart tower")
             t = towers.DartTower(app, col, row)
@@ -497,9 +642,16 @@ def tryPlaceTower(app, x, y, tower):
 
 def recalculateAllPaths(app):
     #make all enemies recalculate path
-    for i in app.enemies:
-        i.path = [i.path[0]]
-        i.path.extend(i.path[0].pathFindToTile(app.exit))
+    for e in app.enemies:
+        e.path = [e.path[0]]
+
+        #note: for second path from top to bottom, we don't want to search right
+        #and left first because then enemies move left and right first instead of first up and down
+        prioritizeVertical = False
+        if e.pathNum == 1:
+            prioritizeVertical = True
+
+        e.path.extend(e.path[0].pathFindToTile(app.exits[e.pathNum], prioritizeVertical=prioritizeVertical))
 
     calculatePath(app)
 
@@ -507,16 +659,20 @@ def canPlaceTower(app, x, y):
     col, row = getTileFromMousePos(app, x, y)
 
     #can't build on entrance, edge scenario
-    if app.tiles[col][row] == app.entrance:
+    if app.tiles[col][row] in app.entrances:
         return False
 
     if col != -1 and not app.tiles[col][row].isWall:
-        allCoords = {(app.entrance.x, app.entrance.y)}
+        allCoords = set()
+        for entrance in app.entrances:
+            allCoords.add((entrance.x, entrance.y))
+
         for i in app.enemies:
             if i.currentPosition[0] == col and i.currentPosition[1] == row or\
             i.path[0].x == col and i.path[0].y == row:
+                # print("on top of an enemy")
                 return False
-            if i.currentPosition[0] != -1 and i.path[0] != app.exit:
+            if i.currentPosition[0] != -1 and i.currentPosition[1] != -1 and i.path[0] != app.exits[i.pathNum]:
                 #all all possible tiles to set and check all of them
                 allCoords.add((i.currentPosition[0], i.currentPosition[1]))
                 allCoords.add((i.path[0].x, i.path[0].y))
@@ -526,24 +682,29 @@ def canPlaceTower(app, x, y):
 
         for i in allCoords:
             #if any tile cannot pathfind, don't allow placement
-            if app.tiles[i[0]][i[1]].pathFindToTile(app.exit) == []:
-                app.tiles[col][row].isWall = False
-                return False
+            for e in app.exits:
+                if app.tiles[i[0]][i[1]].pathFindToTile(e) == []:
+                    # print(f"tile: {i[0]}, {i[1]}")
+                    # print("no path")
+                    app.tiles[col][row].isWall = False
+                    return False
+                # else:
+                    # print("path succeeded")
 
         app.tiles[col][row].isWall = False
         return True
+
+    # print("illegal tile")
     return False
 
 
-#both use height for square grid
 def getTileWidth(app):
     #return (app.width - app.rightMargin) / (app.tileCols - 1)
     return (1024 - app.rightMargin) / (app.tileCols - 1)
 
 def getTileHeight(app):
-    # return app.height / app.tileRows
-    return 768 / app.tileRows
-
+    # return app.height / (app.tileRows - 1)
+    return 768 / (app.tileRows - 1)
 
 def getTileFromMousePos(app, x, y):
     col = int(x / getTileWidth(app))
@@ -572,14 +733,16 @@ def redrawGame(app, canvas):
             y2 = tileHeight * (tile.y + 1) - tileMargin
 
             color = "palegreen"
+            if app.map == "volcano":
+                color = "gray38"
+
             if tile.isWall:
                 color = "white"
-
-            # elif tile in app.pathway or tile == app.entrance:
-            #     color = "blue"
+                if app.map == "volcano" and tile.tower == None:
+                    color = "orangered"
+                    # color = random.choice(["orangered", "orangered2", "orangered3", "orangered4"])
             
             canvas.create_rectangle(x1, y1, x2, y2, fill=color, width=0)
-            #canvas.create_rectangle(x1, y1, x2, y2, fill=color, width=0)
 
     #geometry
     geometry.renderAll(app, canvas)
