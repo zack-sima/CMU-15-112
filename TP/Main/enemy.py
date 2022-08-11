@@ -43,7 +43,16 @@ class Enemy:
         if self.health <= 0:
             #give player money
             app.money += app.enemyTypes[self.color][2]
-            self.destroy(app)
+
+            #sienna (brown) transforms into cyan after getting killed
+            if self.color == "sienna":
+                self.color = "cyan"
+                self.square.color = self.color
+                self.health = app.enemyTypes[self.color][0]
+                self.maxHealth = self.health
+                self.speed = app.enemyTypes[self.color][1]
+            else:
+                self.destroy(app)
 
     def destroy(self, app):
         app.enemies.remove(self)

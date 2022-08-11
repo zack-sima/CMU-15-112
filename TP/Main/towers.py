@@ -1,7 +1,7 @@
 import geometry, main, math
 
 class Explosion:
-	def __init__(self, app, x, y, radius, damage=1, freezeTimer=0):
+	def __init__(self, app, x, y, radius, damage=1, freezeTimer=0, color="black"):
 		self.x = x
 		self.y = y
 		self.destroyed = False
@@ -9,7 +9,7 @@ class Explosion:
 		self.radius = radius
 		self.damage = damage
 		self.freezeTimer = freezeTimer
-		self.circle = geometry.Circle(app, x, y, 1, color="", outlineWidth=3, outlineColor="black", layer=7)
+		self.circle = geometry.Circle(app, x, y, 1, color="", outlineWidth=3, outlineColor=color, layer=7)
 
 		#check collision
 		for e in app.enemies:
@@ -77,8 +77,9 @@ class Dart:
 		self.destroyed = True
 
 class ExplosiveDart(Dart):
-	def __init__(self, app, target, sender, damage=1, freezeTimer=0):
+	def __init__(self, app, target, sender, damage=1, freezeTimer=0, radius=75):
 		super().__init__(app, target, sender, damage=damage, freezeTimer=freezeTimer)
+		self.radius = radius
 		self.explosion = None
 		self.exploding = False
 
@@ -106,7 +107,8 @@ class ExplosiveDart(Dart):
 		for e in app.enemies:
 			if geometry.distance(self.projectile.x, self.projectile.y, e.x, e.y) < e.square.width / 2 + 10:
 				self.projectile.color = ""
-				self.explosion = Explosion(app, self.projectile.x, self.projectile.y, 75, damage=self.damage)
+				self.explosion = Explosion(app, self.projectile.x, self.projectile.y, self.radius,
+					damage=self.damage, freezeTimer=self.freezeTimer, color=self.sender.projectileColor)
 				self.exploding = True
 				break
 
@@ -325,30 +327,34 @@ class FreezeTower(DartTower):
 	def setLevelProperties(self, app):
 		#check level properties
 		if self.level == 1:
-			self.detectionRange = 125
+			self.radius = 50
+			self.detectionRange = 150
 			self.upgradeOutline.outlineColor = ""
-			self.shootInterval = 0.7
+			self.shootInterval = 1.5
 			self.freezeTimer = 1
 			self.damage = 0
 		elif self.level == 2:
-			self.detectionRange = 130
+			self.radius = 65
+			self.detectionRange = 165
 			self.upgradeOutline.outlineColor = "gray"
-			self.shootInterval = 0.55
+			self.shootInterval = 1
 			self.freezeTimer = 1.5
 			self.damage = 0
 		elif self.level == 3:
-			self.detectionRange = 145
+			self.radius = 75
+			self.detectionRange = 180
 			self.upgradeOutline.outlineColor = "black"
-			self.shootInterval = 0.42
+			self.shootInterval = 0.75
 			self.freezeTimer = 2
 			self.damage = 0
 
 	def spawnProjectile(self, app):
-		self.projectiles.append(Dart(app, self.currentTarget, self, damage=self.damage, freezeTimer=self.freezeTimer))
+		self.projectiles.append(ExplosiveDart(app, self.currentTarget, self,
+			damage=self.damage, freezeTimer=self.freezeTimer, radius=self.radius))
 
 class CannonTower(DartTower):
-	def __init__(self, app, col, row):
-		super().__init__(app, col, row, projectileColor="red")
+	def __init__(self, app, col, row, projectileColor="red"):
+		super().__init__(app, col, row, projectileColor=projectileColor)
 		self.tid = 3
 
 		self.name = "Cannon Tower"
@@ -360,21 +366,23 @@ class CannonTower(DartTower):
 	def setLevelProperties(self, app):
 		#check level properties
 		if self.level == 1:
+			self.radius = 55
 			self.detectionRange = 225
 			self.upgradeOutline.outlineColor = ""
 			self.shootInterval = 1.5
 			self.damage = 2
 		elif self.level == 2:
+			self.radius = 70
 			self.detectionRange = 250
 			self.upgradeOutline.outlineColor = "gray"
 			self.shootInterval = 1.2
 			self.damage = 3
 		elif self.level == 3:
+			self.radius = 85
 			self.detectionRange = 275
 			self.upgradeOutline.outlineColor = "black"
 			self.shootInterval = 1
 			self.damage = 5
 
 	def spawnProjectile(self, app):
-		self.projectiles.append(ExplosiveDart(app, self.currentTarget, self, damage=self.damage))
-
+		self.projectiles.append(ExplosiveDart(app, self.currentTarget, self, damage=self.damage, radius=self.radius))

@@ -120,8 +120,11 @@ class Tile:
 def appStarted(app):
     app.scene = "menu" #only load game stuff when this is game scene
 
-    maps = ["grasslands", "volcano"]
-    app.map = maps[1] #map should be set outside of game scene
+    app.maps = ["grasslands", "volcano", "tunnels"]
+    app.map = app.maps[0] #map should be set outside of game scene
+
+    app.difficulties = ["easy", "normal", "hard", "veteran", "impossible"]
+    app.difficulty = 0 #0-3
 
     app.deltaTime = .02 #actual time between current and next
     app.lastCall = time.time()
@@ -150,9 +153,29 @@ def goToGame(app, button):
 
 def menuInit(app):
     app.background = ui.Rectangle(app, app.width / 2, app.height / 2, app.width, app.height, color="white")
-    app.startGameButton = ui.Button(app, app.width / 2, app.height / 2, 350, 70, text="Start Game",
+    app.startGameButton = ui.Button(app, app.width / 2, app.height / 2 - 85, 350, 70, text="Start Game",
         color="palegreen1", dimColor="green2", outlineWidth=2, textColor="black", 
         textFont="Helvetica 30", releaseCallback=goToGame)
+    app.chooseMapButton = ui.Button(app, app.width / 2, app.height / 2, 350, 70, text=f"Map: {app.map}",
+        color="palegreen1", dimColor="green2", outlineWidth=2, textColor="black", 
+        textFont="Helvetica 30", releaseCallback=toggleMap)
+    app.chooseDifficultyButton = ui.Button(app, app.width / 2, app.height / 2 + 85, 350, 70, text=f"Difficulty: {app.difficulties[app.difficulty]}",
+        color="palegreen1", dimColor="green2", outlineWidth=2, textColor="black", 
+        textFont="Helvetica 30", releaseCallback=toggleDifficulty)
+
+def toggleMap(app, button):
+    if app.maps.index(app.map) == len(app.maps) - 1:
+        app.map = app.maps[0]
+    else:
+        app.map = app.maps[app.maps.index(app.map) + 1]
+    app.chooseMapButton.text = f"Map: {app.map}"
+
+def toggleDifficulty(app, button):
+    if app.difficulty == len(app.difficulties) - 1:
+        app.difficulty = 0
+    else:
+        app.difficulty += 1
+    app.chooseDifficultyButton.text = f"Difficulty: {app.difficulties[app.difficulty]}"
 
 def playerLoseHealth(app):
     app.health -= 1
@@ -184,8 +207,21 @@ def gameInit(app):
     #note: last col is nonvisible wall so that the enemy leaves the screen
     app.tileCols, app.tileRows = 16, 16 
     app.rightMargin = 256
-    app.money = 500 #starting cash
-    app.health = 30 #starting health
+
+    app.money = 750 #starting cash
+    app.health = 50 #starting health
+    if app.difficulty == 1:
+        app.money = 500
+        app.health = 30
+    elif app.difficulty == 2:
+        app.money = 450
+        app.health = 15
+    elif app.difficulty == 3:
+        app.money = 400
+        app.health = 5
+    elif app.difficulty == 4:
+        app.money = 350
+        app.health = 1
 
     app.cheatString = "" #cheat string for free money and health
 
@@ -253,6 +289,45 @@ def gameInit(app):
         ]
         for t in lavaTiles:
             app.tiles[t[0]][t[1]].isWall = True
+    elif app.map == "tunnels":
+        app.entrances = [app.tiles[0][4], app.tiles[0][10], app.tiles[4][0], app.tiles[10][0]]
+        app.exits = [app.tiles[app.tileCols - 1][4], app.tiles[app.tileCols - 1][10],  app.tiles[4][app.tileRows - 1], app.tiles[10][app.tileRows - 1]]
+
+        #add lava tiles
+        tunnelTiles = [
+        #corners
+        (0, 14), (0, 13), (0, 12), #(0, 11), (0, 10),
+        (1, 14), (1, 13), #(1, 12), #(1, 11),
+        (2, 14), #(2, 13), #(2, 12),
+        #(3, 14), #(3, 13),
+        #(4, 14),
+
+        (0, 0), (0, 1), (0, 2), #(0, 3), (0, 4),
+        (1, 0), (1, 1), #(1, 2), #(1, 3),
+        (2, 0), #(2, 1), #(2, 2),
+        #(3, 0), #(3, 1),
+        #(4, 0),
+
+        (14, 0), (14, 1), (14, 2), #(14, 3), (14, 4),
+        (13, 0), (13, 1), #(13, 2), #(13, 3),
+        (12, 0), #(12, 1), #(12, 2),
+        #(11, 0), #(11, 1),
+        #(10, 0),
+
+        (14, 14), (14, 13), (14, 12), #(14, 11), (14, 10),
+        (13, 14), (13, 13), #(13, 12), #(13, 11),
+        (12, 14), #(12, 13), #(12, 12),
+        #(11, 14), #(11, 13),
+        #(10, 14),
+
+        #extras
+        (4, 6), (4, 7), (4, 8),
+        (6, 4), (7, 4), (8, 4),
+        (10, 6), (10, 7), (10, 8),
+        (6, 10), (7, 10), (8, 10),
+        ]
+        for t in tunnelTiles:
+            app.tiles[t[0]][t[1]].isWall = True
 
 
 
@@ -267,7 +342,7 @@ def gameInit(app):
     #buy tower UI
     app.buyTowerText = ui.Text(app, app.width - app.rightMargin / 2, 100, anchor="n", text="Buy Towers", font="Helvetica 25 bold", color="white")
 
-    app.towerPrices = [[75, 100, 150], [300, 400, 500], [150, 125, 150], [350, 450, 600]]
+    app.towerPrices = [[75, 100, 150], [300, 400, 500], [200, 200, 250], [350, 450, 600]]
 
 
     app.dartTowerButton = ui.Button(app, app.width - app.rightMargin / 2, 225, 100, 100, color="white", dimColor="lightgreen",
@@ -322,32 +397,35 @@ def gameInit(app):
     #make arrows
     app.pathArrows = []
 
-    p1 = (0, (app.entrances[0].y + 0.5) * getTileHeight(app))
-    path1Arrow = geometry.Polygon(app, 
-        p1[0], p1[1] - 10,
-        p1[0], p1[1] + 10,
-        p1[0] + 70, p1[1] + 10,
-        p1[0] + 70, p1[1] + 20,
-        p1[0] + 100, p1[1], 
-        p1[0] + 70, p1[1] - 20,
-        p1[0] + 70, p1[1] - 10,
-        color="red")
-    path1Arrow.isActive = False
-    app.pathArrows.append(path1Arrow)
-
-    if len(app.entrances) > 1:
-        p2 = ((app.entrances[1].x + 0.5) * getTileWidth(app), 0)
-        path2Arrow = geometry.Polygon(app, 
-            p2[0] - 10, p2[1],
-            p2[0] + 10, p2[1],
-            p2[0] + 10, p2[1] + 70,
-            p2[0] + 20, p2[1] + 70,
-            p2[0], p2[1] + 100, 
-            p2[0] - 20, p2[1] + 70,
-            p2[0] - 10, p2[1] + 70,
-            color="red")
-        path2Arrow.isActive = False
-        app.pathArrows.append(path2Arrow)
+    index = 0
+    for entrance in app.entrances:
+        if entrance.x == 0: #arrow righwards
+            p1 = (0, (app.entrances[index].y + 0.5) * getTileHeight(app))
+            pathArrow = geometry.Polygon(app, 
+                p1[0], p1[1] - 10,
+                p1[0], p1[1] + 10,
+                p1[0] + 70, p1[1] + 10,
+                p1[0] + 70, p1[1] + 20,
+                p1[0] + 100, p1[1], 
+                p1[0] + 70, p1[1] - 20,
+                p1[0] + 70, p1[1] - 10,
+                color="red", layer=7)
+            pathArrow.isActive = False
+            app.pathArrows.append(pathArrow)
+        elif entrance.y == 0:
+            p2 = ((app.entrances[index].x + 0.5) * getTileWidth(app), 0)
+            pathArrow = geometry.Polygon(app, 
+                p2[0] - 10, p2[1],
+                p2[0] + 10, p2[1],
+                p2[0] + 10, p2[1] + 70,
+                p2[0] + 20, p2[1] + 70,
+                p2[0], p2[1] + 100, 
+                p2[0] - 20, p2[1] + 70,
+                p2[0] - 10, p2[1] + 70,
+                color="red", layer=7)
+            pathArrow.isActive = False
+            app.pathArrows.append(pathArrow)
+        index += 1
 
     #health and money display
     app.moneyIcon = ui.Rectangle(app, app.width - app.rightMargin - 250, 35, 35, 35, color="yellow", outlineWidth=3, outlineColor="black")
@@ -431,17 +509,14 @@ def checkTowerPrice(app, towerId, level):
 def calculatePath(app):
     app.pathways = []
     for i in range(len(app.entrances)):
-        prioritizeVertical = False
-        if i == 1: #second path
-            prioritizeVertical = True
-        app.pathways.append(app.entrances[i].pathFindToTile(app.exits[i], prioritizeVertical=prioritizeVertical))
+        app.pathways.append(app.entrances[i].pathFindToTile(app.exits[i], prioritizeVertical=isVerticalPath(app, i)))
 
 def update(app):
     #disable wave arrows
     for arrow in app.pathArrows:
         arrow.isActive = False
 
-    if app.enemySpawnDelay > 0 and app.currentRound < len(app.rounds) - 1:
+    if app.enemySpawnDelay > 0 and app.currentRound < len(app.rounds):
         app.enemySpawnDelay -= app.deltaTime
 
         enemiesAlive = False
@@ -459,7 +534,7 @@ def update(app):
             hasPaths = [False] * len(app.entrances)
 
             for spawn in app.rounds[app.currentRound + 1 if app.currentWave > 0 else 0]:
-                if len(spawn) < 5 or spawn[4] == 0: #path 0
+                if len(spawn) < 5 or spawn[4] == 0 or spawn[4] >= len(app.entrances): #path 0
                     hasPaths[0] = True
                 elif len(spawn) >= 5 and spawn[4] > 0: #path 1
                     hasPaths[spawn[4]] = True
@@ -473,7 +548,7 @@ def update(app):
         if app.currentWave < len(app.enemyWave):
             if app.currentEnemySpawn < app.enemyWave[app.currentWave][1]:
                 path = 0
-                
+
                 #note: defaults back to 0 if path is not in current map
                 if len(app.enemyWave[app.currentWave]) == 5 and len(app.entrances) > app.enemyWave[app.currentWave][4]:
                     path = app.enemyWave[app.currentWave][4]
@@ -598,6 +673,11 @@ def keyPressed(app, event):
     if app.scene != "game":
         return
 
+    if event.key == "r":
+        app.currentRound += 1
+        app.enemyWave = app.rounds[app.currentRound]
+        app.currentWave = 0
+
     if event.key == "f":
         app.showFPS = not app.showFPS
 
@@ -611,10 +691,10 @@ def keyPressed(app, event):
     
     if app.cheatString == moneyCode:
         app.cheatString = ""
-        app.money += 1000
+        app.money += 100000
     elif app.cheatString == livesCode:
         app.cheatString = ""
-        app.health += 1000
+        app.health += 100000
 
 def tryPlaceTower(app, x, y, tower):
     if canPlaceTower(app, x, y):
@@ -640,18 +720,31 @@ def tryPlaceTower(app, x, y, tower):
 
         recalculateAllPaths(app)
 
+def isVerticalPath(app, pathNum):
+    if app.map == "grasslands":
+        return False
+    if app.map == "volcano":
+        if pathNum == 0:
+            return False
+        if pathNum == 1:
+            return True
+    if app.map == "tunnels":
+        if pathNum == 0:
+            return False
+        if pathNum == 1:
+            return False
+        if pathNum == 2:
+            return True
+        if pathNum == 3:
+            return True
+
 def recalculateAllPaths(app):
     #make all enemies recalculate path
     for e in app.enemies:
         e.path = [e.path[0]]
 
-        #note: for second path from top to bottom, we don't want to search right
-        #and left first because then enemies move left and right first instead of first up and down
-        prioritizeVertical = False
-        if e.pathNum == 1:
-            prioritizeVertical = True
-
-        e.path.extend(e.path[0].pathFindToTile(app.exits[e.pathNum], prioritizeVertical=prioritizeVertical))
+        e.path.extend(e.path[0].pathFindToTile(app.exits[e.pathNum],
+            prioritizeVertical=isVerticalPath(app, e.pathNum)))
 
     calculatePath(app)
 
@@ -735,12 +828,15 @@ def redrawGame(app, canvas):
             color = "palegreen"
             if app.map == "volcano":
                 color = "gray38"
+            elif app.map == "tunnels":
+                color = "gray30"
 
             if tile.isWall:
                 color = "white"
                 if app.map == "volcano" and tile.tower == None:
                     color = "orangered"
-                    # color = random.choice(["orangered", "orangered2", "orangered3", "orangered4"])
+                elif app.map == "tunnels" and tile.tower == None:
+                    color = "gray25"
             
             canvas.create_rectangle(x1, y1, x2, y2, fill=color, width=0)
 
