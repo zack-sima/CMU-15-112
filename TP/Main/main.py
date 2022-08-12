@@ -1,5 +1,5 @@
 from cmu_112_graphics import *
-import random, string, math, time, geometry, ui, enemy, towers, levels
+import random, string, math, time, geometry, ui, enemy, towers, levels, threading
 
 #################################################
 # Helper functions
@@ -120,6 +120,8 @@ class Tile:
 def appStarted(app):
     app.scene = "menu" #only load game stuff when this is game scene
 
+    app.multiplayer = False
+
     app.maps = ["grasslands", "volcano", "tunnels"]
     app.map = app.maps[0] #map should be set outside of game scene
 
@@ -132,20 +134,54 @@ def appStarted(app):
 
     changeScene(app, app.scene)
 
-def changeScene(app, scene):
+def changeScene(app, scene, multiplayer=False):
     app.scene = scene
 
     #clean up scene objects
     geometry.init(app)
     ui.init(app)
 
+    app.multiplayer = multiplayer
+
     #load in new scenes
     if scene == "menu":
+        app.multiplayer = False
         menuInit(app)
     elif scene == "game":
         gameInit(app)
     else:
         raise Exception(f"scene {scene} not found")
+
+#--------------- Multiplayer ------------------
+#callback to multiplayer
+def startMultiplayer(app, button):
+    #need to define them now
+    app.enemies = []
+    app.towers = []
+    app.otherPlayer = None #use otherPlayer class to display opponent
+    app.checkingOpponentMap = False #if true, render opponent map and add buttons for sending enemies
+    app.multiplayer = True
+
+    threading.Thread(target=multiplayerThread, args=(app,), daemon=True).start()
+    
+def multiplayerThread(app):
+    import websocket_client
+    websocket_client.init(app)
+
+def loadMultiplayer(app):
+    #called by websocket_client
+    changeScene(app, "game", multiplayer=True)
+
+def switchBetweenOpponent(app, button): #swap between self view and opponent view
+    app.checkingOpponentMap = not app.checkingOpponentMap
+
+    if app.checkingOpponentMap:
+        app.viewOpponentButton.text = "View Self"
+    else:
+        app.viewOpponentButton.text = "View Opponent"
+
+
+#--------------- Multiplayer End -----------------
 
 #callback by menu button to load scene
 def goToGame(app, button):
@@ -162,6 +198,10 @@ def menuInit(app):
     app.chooseDifficultyButton = ui.Button(app, app.width / 2, app.height / 2 + 85, 350, 70, text=f"Difficulty: {app.difficulties[app.difficulty]}",
         color="palegreen1", dimColor="green2", outlineWidth=2, textColor="black", 
         textFont="Helvetica 30", releaseCallback=toggleDifficulty)
+
+    app.multiplayerButton = ui.Button(app, app.width / 2, app.height / 2 + 200, 350, 70, text="Multiplayer\n[Experimental]",
+        color="palegreen1", dimColor="green2", outlineWidth=2, textColor="black", 
+        textFont="Helvetica 25", releaseCallback=startMultiplayer)
 
 def toggleMap(app, button):
     if app.maps.index(app.map) == len(app.maps) - 1:
@@ -339,6 +379,12 @@ def gameInit(app):
     ui.Rectangle(app, app.width - app.rightMargin / 2, app.height / 2,
         app.rightMargin, app.height, color="#8a4a22")
     
+    #------- Multiplayer -------
+    if app.multiplayer:
+        app.viewOpponentButton = ui.Button(app, (app.width - app.rightMargin) / 2, 100, 200, 35, color="gray75", dimColor="lightgreen",
+         text=f"View Opponent", textFont="Helvetica 20", releaseCallback=switchBetweenOpponent, bid=0)
+    #--end--
+
     #buy tower UI
     app.buyTowerText = ui.Text(app, app.width - app.rightMargin / 2, 100, anchor="n", text="Buy Towers", font="Helvetica 25 bold", color="white")
 
@@ -632,6 +678,9 @@ def mousePressed(app, event):
 
     app.currentMouseCoords = (event.x, event.y)
     
+    #if multiplayer checking opponent don't click anything
+    if app.multiplayer and app.checkingOpponentMap: return 
+
     col, row = getTileFromMousePos(app, event.x, event.y)
     if col != -1 and col != app.tileCols - 1:
         #only deselects if a tile is clicked and not last tile (hidden finish tile)
@@ -808,6 +857,57 @@ def getTileFromMousePos(app, x, y):
 
     return col, row
 
+#-------- Multiplayer ---------
+def redrawOpponentGame(app, canvas, otherPlayer):
+    if otherPlayer != None and otherPlayer.towers != None:
+        tileWidth, tileHeight = getTileWidth(app), getTileHeight(app)
+        tileMargin = 0 #space between tiles
+
+        towerCoords = set()
+        for t in otherPlayer.towers:
+            towerCoords.add((t[0], t[1]))
+
+        for col in app.tiles:
+            for tile in col:
+                x1 = tileWidth * tile.x + tileMargin
+                x2 = tileWidth * (tile.x + 1) - tileMargin
+                y1 = tileHeight * tile.y + tileMargin
+                y2 = tileHeight * (tile.y + 1) - tileMargin
+
+                color = "palegreen"
+                if app.map == "volcano":
+                    color = "gray38"
+                elif app.map == "tunnels":
+                    color = "gray30"
+
+                if tile.isWall and tile.tower == None or (tile.x, tile.y) in towerCoords:
+                    color = "white"
+                    if app.map == "volcano" and tile.tower == None:
+                        color = "orangered"
+                    elif app.map == "tunnels" and tile.tower == None:
+                        color = "gray25"
+                
+                canvas.create_rectangle(x1, y1, x2, y2, fill=color, width=0)
+        for t in otherPlayer.towers:
+            #render t
+            tempTower = towers.DartTower(app, t[0], t[1])
+            tempTower.turretBase.rotation = t[2]
+            tempTower.manualRender(app, canvas)
+            tempTower.destroy(app)
+
+        #render enemies
+        for e in otherPlayer.enemies:
+            tempEnemy = enemy.Enemy(app, color=e[2], health=app.enemyTypes[e[2]][0])
+            tempEnemy.x = e[0]
+            tempEnemy.y = e[1]
+            tempEnemy.health = e[3]
+            tempEnemy.manualRender(app, canvas)
+            tempEnemy.destroy(app)
+
+
+    ui.renderAll(app, canvas)
+
+
 def redrawGame(app, canvas):
     #background
     canvas.create_rectangle(0, 0, app.width, app.height, fill="black", width=0)
@@ -888,7 +988,10 @@ def redrawAll(app, canvas):
     if app.scene == "menu":
         redrawMenu(app, canvas)
     elif app.scene == "game":
-        redrawGame(app, canvas)
+        if app.multiplayer and app.checkingOpponentMap:
+            redrawOpponentGame(app, canvas, app.otherPlayer)
+        else:
+            redrawGame(app, canvas)
 
 def main():
     runApp(width=1024, height=768)

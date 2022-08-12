@@ -65,6 +65,12 @@ class Enemy:
         #references to this object by towers may still exist
         self.destroyed = True
 
+    #for multiplayer
+    def manualRender(self, app, canvas):
+        self.square.x = self.x
+        self.square.y = self.y
+        self.square.render(app, canvas)
+
     def update(self, app):
         if self.destroyed or app.paused:
             return

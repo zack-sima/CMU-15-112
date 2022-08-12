@@ -154,12 +154,15 @@ class Rectangle(Shape):
         self.rotation = self.rotation % 360
         self.updateGlobalRotation()
 
+    def recalculatePositions(self):
+        self.updateGlobalRotation()
+        self.updateGlobalPosition()
+
     def render(self, app, canvas):
         if not self.isActive:
             return
             
-        self.updateGlobalRotation()
-        self.updateGlobalPosition()
+        self.recalculatePositions()
 
         topLeft = (self.globalX - self.width / 2, self.globalY - self.height / 2)
         topRight = (self.globalX + self.width / 2, self.globalY - self.height / 2)

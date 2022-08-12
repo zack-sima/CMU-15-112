@@ -171,6 +171,9 @@ class Tower:
 	def destroy(self, app): pass
 	def upgrade(self, app): pass
 
+	#for multiplayer: render once on call
+	def manualRender(self, app, canvas): pass
+
 class DartTower(Tower):
 	def __init__(self, app, col, row, projectileColor="brown"):
 		super().__init__(app, col, row, 200, level=1, maxLevel=3)
@@ -197,6 +200,16 @@ class DartTower(Tower):
 			color="", outlineWidth=3, outlineColor="")
 
 		self.setLevelProperties(app)
+
+	def manualRender(self, app, canvas):
+		#first recalculate positions
+		self.turretGun.recalculatePositions()
+		self.turretBase.recalculatePositions()
+		self.upgradeOutline.recalculatePositions()
+
+		self.turretGun.render(app, canvas)
+		self.turretBase.render(app, canvas)
+		self.upgradeOutline.render(app, canvas)
 
 	def update(self, app):
 		if self.destroyed:
