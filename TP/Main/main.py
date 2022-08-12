@@ -119,6 +119,7 @@ class Tile:
 
 def appStarted(app):
     app.scene = "menu" #only load game stuff when this is game scene
+    app.loadedMultiplayer = False
 
     app.multiplayer = False
 
@@ -156,6 +157,7 @@ def changeScene(app, scene, multiplayer=False):
 #callback to multiplayer
 def startMultiplayer(app, button):
     #need to define them now
+    app.opponentSpawnColor = "" #empty means no new spawn
     app.enemies = []
     app.towers = []
     app.otherPlayer = None #use otherPlayer class to display opponent
@@ -180,6 +182,23 @@ def switchBetweenOpponent(app, button): #swap between self view and opponent vie
     else:
         app.viewOpponentButton.text = "View Opponent"
 
+def spawnOpponentEnemy(app, color):
+    enemy.Enemy(app, health=app.enemyTypes[color][0],
+                    speed=app.enemyTypes[color][1],
+                    color=color, pathNum=0)
+
+#multplayer button that gives opponent an enemy
+def giveOpponentEnemy(app, button):
+    if app.money > app.enemyCosts[button.bid]:
+        app.money -= app.enemyCosts[button.bid]
+        if button.bid == 0:
+            app.opponentSpawnColor = "green"
+        if button.bid == 1:
+            app.opponentSpawnColor = "yellow"
+        if button.bid == 2:
+            app.opponentSpawnColor = "pink"
+        if button.bid == 3:
+            app.opponentSpawnColor = "white"
 
 #--------------- Multiplayer End -----------------
 
@@ -384,6 +403,21 @@ def gameInit(app):
         app.viewOpponentButton = ui.Button(app, (app.width - app.rightMargin) / 2, 100, 200, 35, color="gray75", dimColor="lightgreen",
          text=f"View Opponent", textFont="Helvetica 20", releaseCallback=switchBetweenOpponent, bid=0)
     #--end--
+
+    #multiplayer UI
+    app.enemyCosts = [10, 20, 35, 50]
+    app.spawn1Button = ui.Button(app, app.width - app.rightMargin / 2, 225, 100, 100, color="white", dimColor="lightgreen",
+     text=f"Green\nEnemy\n\n${app.enemyCosts[0]}", textFont="Helvetica 18 bold", releaseCallback=giveOpponentEnemy, bid=0)
+    app.spawn2Button = ui.Button(app, app.width - app.rightMargin / 2, 350, 100, 100, color="white", dimColor="lightgreen",
+     text=f"Yellow\nEnemy\n\n${app.enemyCosts[1]}", textFont="Helvetica 18 bold", releaseCallback=giveOpponentEnemy, bid=1)
+    app.spawn3Button = ui.Button(app, app.width - app.rightMargin / 2, 475, 100, 100, color="white", dimColor="lightgreen",
+     text=f"Pink\nEnemy\n\n${app.enemyCosts[2]}", textFont="Helvetica 18 bold", releaseCallback=giveOpponentEnemy, bid=2)
+    app.spawn4Button = ui.Button(app, app.width - app.rightMargin / 2, 601, 100, 100, color="white", dimColor="lightgreen",
+     text=f"White\nEnemy\n\n${app.enemyCosts[3]}", textFont="Helvetica 18 bold", releaseCallback=giveOpponentEnemy, bid=3)
+    
+    app.multiplayerUI = [app.spawn1Button, app.spawn2Button, app.spawn3Button, app.spawn4Button]
+    for i in app.multiplayerUI:
+        i.isActive = False
 
     #buy tower UI
     app.buyTowerText = ui.Text(app, app.width - app.rightMargin / 2, 100, anchor="n", text="Buy Towers", font="Helvetica 25 bold", color="white")
@@ -859,6 +893,11 @@ def getTileFromMousePos(app, x, y):
 
 #-------- Multiplayer ---------
 def redrawOpponentGame(app, canvas, otherPlayer):
+    for i in app.multiplayerUI:
+        i.isActive = True
+    for i in app.buyTowerUI:
+        i.isActive = False
+
     if otherPlayer != None and otherPlayer.towers != None:
         tileWidth, tileHeight = getTileWidth(app), getTileHeight(app)
         tileMargin = 0 #space between tiles
@@ -892,6 +931,9 @@ def redrawOpponentGame(app, canvas, otherPlayer):
             #render t
             tempTower = towers.DartTower(app, t[0], t[1])
             tempTower.turretBase.rotation = t[2]
+            tempTower.turretBase.color = t[4]
+            tempTower.level = t[3]
+            tempTower.setLevelProperties(app)
             tempTower.manualRender(app, canvas)
             tempTower.destroy(app)
 
@@ -911,6 +953,11 @@ def redrawOpponentGame(app, canvas, otherPlayer):
 def redrawGame(app, canvas):
     #background
     canvas.create_rectangle(0, 0, app.width, app.height, fill="black", width=0)
+
+    for i in app.multiplayerUI:
+        i.isActive = False
+    for i in app.buyTowerUI:
+        i.isActive = True
 
     tileWidth, tileHeight = getTileWidth(app), getTileHeight(app)
     tileMargin = 0 #space between tiles
@@ -998,3 +1045,11 @@ def main():
 
 if __name__ == '__main__':
     main()
+
+
+
+
+
+
+
+    

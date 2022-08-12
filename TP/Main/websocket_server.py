@@ -24,7 +24,12 @@ async def echo(websocket):
 				await websocket.send(str(pid))
 			else:
 				player = websocket_player_data.PlayerData.fromJSON(message)
+				previousEnemySpawn = players[player.playerId].opponentSpawnColor
+
 				players[player.playerId] = player
+
+				if player.opponentSpawnColor == "": #don't override spawn
+					player.opponentSpawnColor = previousEnemySpawn
 
 				otherPlayer = None
 
@@ -38,6 +43,7 @@ async def echo(websocket):
 					await websocket.send("wait")
 
 				await websocket.send(websocket_player_data.PlayerData.toJSON(otherPlayer))
+				otherPlayer.opponentSpawnColor = ""
 	except Exception as e:
 		if assignedPlayerId != -1:
 			#clean player
@@ -46,7 +52,7 @@ async def echo(websocket):
 			print(f"connection error: {e}")
 
 	if assignedPlayerId != -1:
-		players[assignedPlayerId] = websocket_player_data.PlayerData(-1, None, None)
+		players[assignedPlayerId] = websocket_player_data.PlayerData(-1, None, None, "")
 		print(f"removed player {assignedPlayerId}")
 
 async def main():
@@ -58,7 +64,7 @@ players = []
 def init():
 	global players
 	for i in range(2):
-		players.append(websocket_player_data.PlayerData(-1, None, None))
+		players.append(websocket_player_data.PlayerData(-1, None, None, ""))
 
 	asyncio.run(main())
 

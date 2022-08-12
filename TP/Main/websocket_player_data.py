@@ -2,19 +2,21 @@ from types import SimpleNamespace
 import json
 
 class PlayerData:
-	def __init__(self, playerId, towers, enemies):
+	def __init__(self, playerId, towers, enemies, opponentSpawnColor):
 		self.playerId = playerId
 		#instead of classes, have a list of elements:
 		#[x, y, rotation, tower type, tower level]
 		self.towers = []
 		if towers != None:
 			for t in towers:
-				self.towers.append([t.col, t.row, t.turretBase.rotation]) #just have coordinates for now
+				self.towers.append([t.col, t.row, t.turretBase.rotation, t.level, t.turretBase.color]) #just have coordinates for now
 
 		self.enemies = []
 		if enemies != None:
 			for e in enemies:
 				self.enemies.append([e.x, e.y, e.color, e.health])
+
+		self.opponentSpawnColor = opponentSpawnColor
 
 	@staticmethod
 	def toJSON(obj):

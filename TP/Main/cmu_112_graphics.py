@@ -392,9 +392,9 @@ class App(object):
         return (getattr(type(app), methodName) is not getattr(App, methodName))
 
     def _mvcViolation(app, errMsg):
-        pass #for some reason threading pulls this error too
-        # app._running = False
-        # raise Exception('MVC Violation: ' + errMsg)
+        return #for some reason threading pulls this error too
+        app._running = False
+        raise Exception('MVC Violation: ' + errMsg)
 
     @_safeMethod
     def _redrawAllWrapper(app):

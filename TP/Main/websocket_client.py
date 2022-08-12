@@ -15,12 +15,14 @@ async def mainFunc(app):
 			if app.playerId == -1:
 				await websocket.send("request_id")
 			else:
-				player = websocket_player_data.PlayerData(app.playerId, app.towers, app.enemies)
-				print(f"sent: {websocket_player_data.PlayerData.toJSON(player)}")
+				player = websocket_player_data.PlayerData(app.playerId, app.towers, app.enemies, app.opponentSpawnColor)
+				app.opponentSpawnColor = ""
+
+				#print(f"sent: {websocket_player_data.PlayerData.toJSON(player)}")
 				await websocket.send(websocket_player_data.PlayerData.toJSON(player))
 
 			msg = str(await websocket.recv()).replace("\n", "") 
-			print(f"received: { msg }")
+			#print(f"received: { msg }")
 
 			if msg.isdigit() and app.playerId == -1: #receiving player id
 				print("assigning player id, loading game")
@@ -32,17 +34,26 @@ async def mainFunc(app):
 					#parse data (other player)
 					try:
 						app.otherPlayer = websocket_player_data.PlayerData.fromJSON(msg)
-						#update
+						if app.otherPlayer.opponentSpawnColor != "":
+							#spawning opponent stuff
+							print("spawning opponent square")
+							main.spawnOpponentEnemy(app, app.otherPlayer.opponentSpawnColor)
 					except:
 						print("could not decipher json msg")
 				else:
 					app.otherPlayer = None
 
-
 			time.sleep(0.1)
+
+			if app.scene == "menu":
+				print("disconnected")
+				app.loadedMultiplayer = False
+				break
 	# except Exception as e:
 	# 	print("websockets failed: " + str(e))
 
 def init(app):
-	app.playerId = -1
-	asyncio.run(mainFunc(app))
+	if not app.loadedMultiplayer:
+		app.loadedMultiplayer = True
+		app.playerId = -1
+		asyncio.run(mainFunc(app))
