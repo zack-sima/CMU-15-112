@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1.0, user-scalable=0">
+    <meta name="csrf-param" content="authenticity_token" />
+<meta name="csrf-token" content="tS8FQXpK1/Ej/AY9y47gc+JjA10p3ea5Ee84Pu2/pEuUDiEA1iY9orXksGHSOYlDAwKcZXIGnZYxcH9AGT6f3g==" />
+    <link rel="shortcut icon" type="image/x-icon" href="/assets/autolab-c5cbf495c3c2a477f394115fb34e5d7ba94f1d5756996ee523469677709ff7fa.ico?v=3" />
+
+    <link rel="stylesheet" media="screen" href="/assets/application-df2169bf010b49b637a8f94124ff9af91c3b533939be47719a810f2656b09678.css" />
+    <!-- Flatpickr Datepicker CSS (lightweight file) -->
+    <link rel="stylesheet" media="screen" href="https://unpkg.com/flatpickr/dist/flatpickr.min.css" />
+    <link rel="stylesheet" media="screen" href="/assets/animate-16d62c8b9796419451f09244d2e046f4e611e00d4bf6e4f8d920d006b0bfac31.css" />
+    <link rel="stylesheet" media="screen" href="/assets/style-daeaacd565180e6427118b382cce88a8232a63ea42c71efb4eff714c4d5683ba.css" />
+
+
+
+
+    
+    <link href='//fonts.googleapis.com/css?family=Source+Sans+Pro:300,400' rel='stylesheet' type='text/css'>
+    
+    <title>15-112: Fundamentals of Programming and Computer Science</title>
+
+  </head>
+
+  <body class="autolab">
+    <!-- <div id="fb-root"></div>
+    <script>(function(d, s, id) {
+      var js, fjs = d.getElementsByTagName(s)[0];
+      if (d.getElementById(id)) return;
+      js = d.createElement(s); js.id = id;
+      js.src = "//connect.facebook.net/en_US/sdk.js#xfbml=1&version=v2.3&appId=259908887444831";
+      fjs.parentNode.insertBefore(js, fjs);
+    }(document, 'script', 'facebook-jssdk'));</script>  -->
+    <script src="//ajax.googleapis.com/ajax/libs/jquery/2.1.4/jquery.min.js"></script>
+    
+    <!--<script src="//cdnjs.cloudflare.com/ajax/libs/twitter-bootstrap/3.0.0/js/bootstrap.js"></script>-->
+    <script src="/assets/application-54cab0b62d294ae33ab7632a11a28a1c1124bc60b624af5d9ef89a83f01680c5.js"></script>
+
+    <!-- Flatpickr Datetimepicker JS (lightweight file) -->
+    <script src="https://unpkg.com/flatpickr"></script>
+
+    <div class="page-wrapper">
+      <a class="skip-main" href="#content">Skip to main content</a>
+      <div class="main-header" role="navigation">
+
+  <!-- Materialize Icons -->
+  <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+
+  <script>
+    // Not using Jquery to bind the listener since it's not loaded at this point
+    document.addEventListener("DOMContentLoaded", function(event) {
+      $('.sidenav').sidenav({
+        edge: 'right'
+      });
+
+      $('.dropdown-trigger').dropdown({
+        coverTrigger: false
+      });
+    });
+  </script>
+
+  <link rel="stylesheet" media="screen" href="/assets/navbar-c3671a3528321704f07c721ec7de299919056b713b8fa817360abed6b65e127e.css" />
+
+  <!-- Experimental Navbar Code -->
+  <ul id="dropdown1" class="dropdown-content">
+      <li role="presentation">
+        <a title="View your account info" href="/users/91801">Account</a>
+      </li>
+      <li role="presentation">
+        <a title="View your user profile for the current course" href="/courses/15112-n22/course_user_data/304540">Course Profile</a>
+      </li>
+    <li role="presentation" class="divider"></li>
+    <li role="presentation">
+      <a rel="nofollow" data-method="delete" href="/auth/users/sign_out">Log out</a>
+    </li>
+  </ul>
+  <nav>
+    <div class="nav-wrapper">
+      <a href="/" class="brand-logo logo"><img width="180" alt="Carnegie Mellon University" src="/assets/AUTOLAB@2x-43e263f948eacf7d762f0ebd94ec5f3a4e93f305c513c8742cbd28e690b6723b.png" /></a>
+      <a href="#" data-target="mobile-demo" class="sidenav-trigger right"><i class="material-icons">menu</i></a>
+
+      <ul class="right hide-on-med-and-down">
+
+            <li><a title="View your gradebook" href="/courses/15112-n22/course_user_data/304540/gradebook"><i class='material-icons left'>grading</i> Gradebook</a></li>
+
+          <li><a title="View a history of autograding jobs" href="/courses/15112-n22/jobs"><i class='material-icons left'>clear_all</i> Jobs</a></li>
+
+
+
+          <li><a class="dropdown-trigger" href="#!" data-target="dropdown1" data-beloworigin="true" data-hover="false">Zack Sima<i class="material-icons right">arrow_drop_down</i></a></li>
+      </ul>
+
+      <!-- Responsive Sidebar -->
+      <ul class="sidenav" id="mobile-demo">
+        <!-- User -->
+        <div id="nav-user" class="red lighten-5">
+          <div class="dropdown-toggle" id="dropdownMenu1">
+            Zack Sima
+          </div>
+          <li role="presentation">
+            <a title="View your account info" href="/users/91801"><i class='material-icons left'>account_circle</i> Account</a>
+          </li>
+          <li role="presentation">
+            <a title="View your user profile for the current course" href="/courses/15112-n22/course_user_data/304540"><i class='material-icons left'>assignment_ind</i> Course Profile</a>
+          </li>
+        <li role="presentation">
+          <a rel="nofollow" data-method="delete" href="/auth/users/sign_out"><i class='material-icons left'>exit_to_app</i> Log out</a>
+        </li>
+        <li role="presentation" class="divider"></li>
+      </div>
+        <!-- Usual Navbar Items -->
+
+            <li><a title="View your gradebook" href="/courses/15112-n22/course_user_data/304540/gradebook"><i class='material-icons left'>grading</i> Gradebook</a></li>
+
+          <li><a title="View a history of autograding jobs" href="/courses/15112-n22/jobs"><i class='material-icons left'>clear_all</i> Jobs</a></li>
+
+
+      </ul>
+
+    </div>
+
+    <!-- Responsive Menu Code -->
+
+  </nav>
+
+</div>
+
+  <div class="sub-navigation">
+    <span class="left-nav">
+      <span class="item">
+        <a href="/"><i class="material-icons home-icon">home</i></a>
+      </span>
+        <span class="item"><a id="courseTitle" href="/courses/15112-n22">15-112: Fundamentals of Programming and Computer Science (n22)</a></span>
+        <span class="item"><a href="/courses/15112-n22/assessments/tp3">tp3</a></span>
+    </span>
+  </div>
+
+
+      <!-- Page Body -->
+      <div id="pageBody" class="container">
+
+
+        <!-- Flashes -->
+        <div id="flashes">
+          <noscript>
+              <div id="flash_error" class="error">
+                  AutoLab requires Javascript to be enabled for all features to correctly function. Please enable Javascript.
+              </div>
+          </noscript>
+        </div>
+        <!-- End Flashes -->
+
+        <!-- Persistent Announcements -->
+          <ul class="annoucement gray-box">
+    
+  </ul>
+
+        <!-- End Persistent Announcements -->
+
+        <!-- Content -->
+        <div id="content" role="main">
+          
+<h2>Feedback for
+tp3 - score
+(ysima@andrew.cmu.edu)
+</h2>
+<pre>
+Hi Zack! Congratulations on a fantastic project! You should be very proud of what you accomplished, and so do I. Your basic gameplay and complexity with floodfill guarantee an MVP. The multi-player compatibility and detailed improvement in standard mode bring you even a step further. Honestly, I am very much impressed at your talent in game-design! So, what after? Well, there is always room for improvement and work ahead to continue. But really for now, try to enjoy the rest of the summer, take a moment to reflect upon what you have accomplished in the past few weeks, and if you ever want to apply to CMU, I wish to see again sometime in the future!
+Score for this problem: 96.4
+
+Graded by: mdtaylor@andrew.cmu.edu
+</pre>
+
+<!--
+Yes, feedback if per problem but we show all annotations for this submission anyway. While this is not semantically correct, it offers a better UX than we had before. If we just show annotations attached to this problem, then where would we show annotations not attached to a problem at all?
+-->
+
+
+        </div>
+        <!-- End Content -->
+        <div id="footer">
+    <a href="http://autolabproject.com">Autolab Project</a>
+    &middot; <a href="/contact">Contact</a>
+    &middot; <a href="https://github.com/autolab/Autolab">GitHub</a>
+    &middot; <a href="https://www.facebook.com/autolabproject">Facebook</a>
+    &middot; <a rel="nofollow" data-method="delete" href="/auth/users/sign_out">Logout</a>
+
+    <span class="site_version">v2.7.0</span>
+</div>
+
+        <!-- End Footer -->
+      </div>
+      <!-- End Page Body -->
+      <!-- Footer -->
+    </div>
+
+
+    <script async defer id="github-bjs" src="https://buttons.github.io/buttons.js"></script>
+    
+
+  </body>
+</html>
